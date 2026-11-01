@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from app.api.routes import router as receipts_router
 from app.core.config import settings
@@ -10,10 +11,25 @@ from app.core.database import Base, engine
 import app.models.receipt  # noqa: F401 - Tabloların metadata'ya kaydolması için
 
 
+def _ensure_receipt_items_columns() -> None:
+    """Mevcut SQLite veritabanında quantity ve unit_price sütunları yoksa otomatik ekler."""
+    inspector = inspect(engine)
+    if "receipt_items" not in inspector.get_table_names():
+        return
+
+    existing_cols = {col["name"] for col in inspector.get_columns("receipt_items")}
+    with engine.begin() as conn:
+        if "quantity" not in existing_cols:
+            conn.execute(text("ALTER TABLE receipt_items ADD COLUMN quantity FLOAT NOT NULL DEFAULT 1.0"))
+        if "unit_price" not in existing_cols:
+            conn.execute(text("ALTER TABLE receipt_items ADD COLUMN unit_price FLOAT"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Uygulama başlarken SQLite tablolarını oluştur
+    # Uygulama başlarken SQLite tablolarını oluştur ve eksik sütunları tamamla
     Base.metadata.create_all(bind=engine)
+    _ensure_receipt_items_columns()
     yield
 
 
@@ -24,7 +40,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# İleride eklenecek Frontend uygulaması için CORS Middleware
+# Frontend uygulaması için CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,

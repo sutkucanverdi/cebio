@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -8,7 +8,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ParsedReceiptItem(BaseModel):
     name: str = Field(..., description="Fişteki ürün veya hizmetin tam adı")
-    price: float = Field(..., description="Ürünün toplam kalem fiyatı (TL/Para birimi cinsinden sayısal değer)")
+    price: float = Field(..., description="Ürünün toplam satır tutarı (quantity * unit_price)")
+    quantity: float = Field(
+        default=1.0,
+        description="Ürünün adedi veya miktarı (Örn: '2X 200,00' ise 2.0, belirtilmemişse varsayılan 1.0)",
+    )
+    unit_price: Optional[float] = Field(
+        default=None,
+        description="Ürünün birim fiyatı (Örn: '2X 200,00' ise 200.0, belirtilmemişse None veya satır fiyatı)",
+    )
     category: str = Field(
         ...,
         description="Ürünün kategorisi (Örn: Gıda, İçecek, Temizlik, Kişisel Bakım, Teknoloji, Restoran, Diğer)",
@@ -21,7 +29,7 @@ class ParsedReceipt(BaseModel):
     total_amount: float = Field(..., description="Fişin genel toplam tutarı")
     items: List[ParsedReceiptItem] = Field(
         ...,
-        description="Fişte yer alan tüm harcama kalemlerinin listesi",
+        description="Fişte yer alan tüm harcama ürünlerinin listesi",
     )
 
 
@@ -32,6 +40,8 @@ class ReceiptItemResponse(BaseModel):
     receipt_id: int
     name: str
     price: float
+    quantity: float = 1.0
+    unit_price: Optional[float] = None
     category: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -53,7 +63,7 @@ class ReceiptResponse(BaseModel):
 class CategoryBreakdown(BaseModel):
     category: str = Field(..., description="Harcama kategorisi adı")
     total_amount: float = Field(..., description="Bu kategorideki toplam harcama tutarı")
-    item_count: int = Field(..., description="Bu kategorideki toplam ürün/kalem adedi")
+    item_count: int = Field(..., description="Bu kategorideki toplam ürün adedi")
 
 
 class ReceiptSummaryResponse(BaseModel):

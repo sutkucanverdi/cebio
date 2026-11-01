@@ -72,9 +72,9 @@ def _make_mock_receipt(
 ) -> ParsedReceipt:
     if items is None:
         items = [
-            ParsedReceiptItem(name="Tam Yağlı Süt 1L", price=45.50, category="Gıda"),
-            ParsedReceiptItem(name="Filtre Kahve 250g", price=155.00, category="İçecek"),
-            ParsedReceiptItem(name="Bulaşık Deterjanı", price=50.00, category="Temizlik"),
+            ParsedReceiptItem(name="Tam Yağlı Süt 1L", price=45.50, quantity=1.0, unit_price=45.50, category="Gıda"),
+            ParsedReceiptItem(name="Filtre Kahve 250g", price=400.00, quantity=2.0, unit_price=200.00, category="İçecek"),
+            ParsedReceiptItem(name="Bulaşık Deterjanı", price=50.00, quantity=1.0, unit_price=50.00, category="Temizlik"),
         ]
     return ParsedReceipt(
         merchant=merchant,
@@ -85,7 +85,7 @@ def _make_mock_receipt(
 
 
 def test_upload_receipt_success_and_extension_fallback(client: TestClient) -> None:
-    mock_parsed = _make_mock_receipt()
+    mock_parsed = _make_mock_receipt(total_amount=495.50)
 
     with patch(
         "app.api.routes.receipt_parser_service.parse_receipt_image",
@@ -107,10 +107,14 @@ def test_upload_receipt_success_and_extension_fallback(client: TestClient) -> No
     assert data["id"] == 1
     assert data["merchant"] == "Migros Ticaret A.Ş."
     assert data["date"] == "2026-11-01"
-    assert data["total_amount"] == 250.50
+    assert data["total_amount"] == 495.50
     assert len(data["items"]) == 3
     assert data["items"][0]["name"] == "Tam Yağlı Süt 1L"
     assert data["items"][0]["category"] == "Gıda"
+    assert data["items"][1]["name"] == "Filtre Kahve 250g"
+    assert data["items"][1]["quantity"] == 2.0
+    assert data["items"][1]["unit_price"] == 200.00
+    assert data["items"][1]["price"] == 400.00
 
 
 def test_upload_receipt_invalid_format(client: TestClient) -> None:

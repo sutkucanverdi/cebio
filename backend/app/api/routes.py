@@ -60,7 +60,7 @@ def resolve_image_mime_type(file: UploadFile) -> str:
     response_model=ReceiptResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Fiş fotoğrafı yükle ve ayrıştır",
-    description="Yüklenen fiş görselini Google Gemini ile analiz eder, kalemleri SQLite veritabanına kaydeder ve sonucu döner.",
+    description="Yüklenen fiş görselini Google Gemini ile analiz eder, ürünleri SQLite veritabanına kaydeder ve sonucu döner.",
 )
 async def upload_receipt(
     file: UploadFile = File(..., description="Analiz edilecek fiş görseli (JPEG, PNG, WEBP)"),
@@ -99,6 +99,8 @@ async def upload_receipt(
             ReceiptItem(
                 name=item.name,
                 price=item.price,
+                quantity=item.quantity if item.quantity and item.quantity > 0 else 1.0,
+                unit_price=item.unit_price,
                 category=item.category,
             )
             for item in parsed_data.items
@@ -129,7 +131,7 @@ def get_receipts_summary(db: Session = Depends(get_db)) -> ReceiptSummaryRespons
         select(
             ReceiptItem.category,
             func.coalesce(func.sum(ReceiptItem.price), 0.0).label("total_amount"),
-            func.count(ReceiptItem.id).label("item_count"),
+            func.coalesce(func.sum(ReceiptItem.quantity), 0.0).label("item_count"),
         )
         .group_by(ReceiptItem.category)
         .order_by(func.sum(ReceiptItem.price).desc())
@@ -205,8 +207,8 @@ def get_receipt(receipt_id: int, db: Session = Depends(get_db)) -> Receipt:
 @router.delete(
     "/{receipt_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Fişi ve alt kalemlerini sil",
-    description="Belirtilen ID'ye sahip fişi ve ona bağlı tüm harcama kalemlerini veritabanından siler.",
+    summary="Fişi ve alt ürünlerini sil",
+    description="Belirtilen ID'ye sahip fişi ve ona bağlı tüm ürünleri veritabanından siler.",
 )
 def delete_receipt(receipt_id: int, db: Session = Depends(get_db)) -> Response:
     stmt = select(Receipt).where(Receipt.id == receipt_id)

@@ -11,9 +11,11 @@ Gönderilen fiş veya fatura fotoğrafını dikkatlice incele ve aşağıdaki ku
 1. merchant: Mağaza, market veya işletmenin adını temiz ve okunaklı şekilde yaz.
 2. date: Fiş üzerindeki tarihi mutlaka YYYY-MM-DD formatına dönüştür (Örn: 2026-11-01). Eğer fişte tarih okunamıyorsa bugünün tarihini YYYY-MM-DD olarak varsay.
 3. total_amount: Fişin genel toplam (TOPLAM / GENEL TOPLAM) tutarını float olarak çıkar.
-4. items: Fişteki her bir ürünü/kalemi ayrı ayrı çıkar:
-   - name: Ürün adını düzeltilmiş ve anlaşılır şekilde yaz.
-   - price: Kalemin tutarını float olarak yaz.
+4. items: Fişteki her bir ürünü ayrı ayrı çıkar:
+   - name: Ürün adını düzeltilmiş ve anlaşılır şekilde yaz (adet veya çarpan bilgisini ürün adına ekleme).
+   - quantity: Ürünün adedini veya miktarını float olarak yaz. Fişte "2X 200,00", "2 ADET X 200,00" gibi çarpanlar varsa quantity: 2.0 olarak yaz; belirtilmemişse varsayılan olarak 1.0 yaz.
+   - unit_price: Fişte "2X 200,00" gibi birim fiyat belirtilmişse unit_price: 200.0 olarak yaz. Tek adetli ürünlerde birim fiyat satır tutarına eşittir.
+   - price: İlgili satırın toplam tutarını float olarak yaz (Örn: "2X 200,00" ise price: 400.0).
    - category: Ürünü en uygun kategoriye ata (Gıda, Atıştırmalık, İçecek, Temizlik, Kişisel Bakım, Ev & Yaşam, Elektronik, Giyim, Restoran & Kafe, Ulaşım, Diğer).
 """
 
@@ -47,7 +49,10 @@ class ReceiptParserService:
             mime_type=mime_type,
         )
 
-        prompt = "Bu fiş görselini analiz et ve tüm kalemleri istenen JSON şemasına uygun olarak çıkar."
+        prompt = (
+            "Bu fiş görselini analiz et; mağaza adını, tarihi, genel toplamı ve tüm ürünleri "
+            "(quantity, unit_price ve satır toplam tutarı price dahil) istenen JSON şemasına uygun olarak çıkar."
+        )
 
         response = self.client.models.generate_content(
             model=self.model_name,
