@@ -33,6 +33,26 @@ class ParsedReceipt(BaseModel):
     )
 
 
+# --- Fiş Güncelleme (PUT) Şemaları ---
+
+class ReceiptItemUpdate(BaseModel):
+    name: str = Field(..., min_length=1, description="Ürün adı")
+    price: float = Field(..., ge=0.0, description="Satır toplam tutarı")
+    quantity: float = Field(default=1.0, gt=0.0, description="Ürün adedi")
+    unit_price: Optional[float] = Field(default=None, ge=0.0, description="Ürün birim fiyatı")
+    category: str = Field(..., min_length=1, description="Ürün kategorisi")
+
+
+class ReceiptUpdate(BaseModel):
+    merchant: str = Field(..., min_length=1, description="Mağaza veya işletme adı")
+    date: str = Field(..., min_length=1, description="Fiş tarihi (YYYY-MM-DD)")
+    total_amount: float = Field(..., ge=0.0, description="Fiş genel toplam tutarı")
+    items: List[ReceiptItemUpdate] = Field(
+        default_factory=list,
+        description="Güncel ürün listesi",
+    )
+
+
 # --- API Request / Response Şemaları ---
 
 class ReceiptItemResponse(BaseModel):

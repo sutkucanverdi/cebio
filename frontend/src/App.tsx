@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Download,
+  Edit3,
   FileText,
   FolderOpen,
   Loader2,
@@ -31,6 +33,7 @@ import {
   Tooltip,
   TooltipProps,
 } from 'recharts';
+import { ThermalReceiptModal } from './components/ThermalReceiptModal';
 import {
   CategoryBreakdown,
   deleteReceipt,
@@ -91,6 +94,14 @@ function getUnitPrice(item: ReceiptItem): number {
   return item.price / qty;
 }
 
+function escapeCsvCell(value: string | number): string {
+  const str = String(value ?? '');
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 interface CustomPieTooltipProps extends TooltipProps<number, string> {
   totalAmount: number;
 }
@@ -146,6 +157,11 @@ export default function App() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [expandedReceiptId, setExpandedReceiptId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Termal Fiş Yazdırma & Kağıt Üzerinde Düzenleme Modalı state'leri
+  const [isThermalOpen, setIsThermalOpen] = useState<boolean>(false);
+  const [thermalReceipt, setThermalReceipt] = useState<Receipt | null>(null);
+  const [thermalInitialEdit, setThermalInitialEdit] = useState<boolean>(false);
 
   // Bildirim state'leri
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
@@ -211,18 +227,19 @@ export default function App() {
     }
 
     setIsUploading(true);
+    setThermalReceipt(null);
+    setThermalInitialEdit(false);
+    setIsThermalOpen(true);
     setUploadSuccess(null);
     setErrorMsg(null);
 
     try {
       const created = await uploadReceipt(file);
-      const totalQty = getReceiptTotalQuantity(created);
-      setUploadSuccess(
-        `"${created.merchant}" fişi başarıyla ayrıştırıldı! (${formatQuantity(totalQty)} ürün • ${formatCurrency(created.total_amount)})`
-      );
+      setThermalReceipt(created);
       setExpandedReceiptId(created.id);
       await fetchDashboardData();
     } catch (err: any) {
+      setIsThermalOpen(false);
       const apiDetail = err?.response?.data?.detail;
       setErrorMsg(apiDetail || 'Fiş yüklenirken veya analiz edilirken bir hata oluştu.');
     } finally {
@@ -263,11 +280,103 @@ export default function App() {
     }
   };
 
+  const handleOpenThermalEdit = (receipt: Receipt) => {
+    setThermalReceipt(receipt);
+    setThermalInitialEdit(true);
+    setIsThermalOpen(true);
+  };
+
+  const handleExportCsv = () => {
+    if (receipts.length === 0) return;
+
+    const headers = [
+      'Tarih',
+      'Mağaza',
+      'Kategori',
+      'Ürün Adı',
+      'Adet',
+      'Birim Fiyat',
+      'Toplam Fiyat',
+    ];
+
+    const rows: string[] = [headers.join(',')];
+
+    for (const receipt of receipts) {
+      if (receipt.items.length === 0) {
+        rows.push(
+          [
+            escapeCsvCell(receipt.date),
+            escapeCsvCell(receipt.merchant),
+            escapeCsvCell('Diğer'),
+            escapeCsvCell('Genel Fiş Tutarı'),
+            escapeCsvCell(1),
+            escapeCsvCell(receipt.total_amount.toFixed(2)),
+            escapeCsvCell(receipt.total_amount.toFixed(2)),
+          ].join(',')
+        );
+      } else {
+        for (const item of receipt.items) {
+          const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
+          const unitPrice = getUnitPrice(item);
+          rows.push(
+            [
+              escapeCsvCell(receipt.date),
+              escapeCsvCell(receipt.merchant),
+              escapeCsvCell(item.category),
+              escapeCsvCell(item.name),
+              escapeCsvCell(qty),
+              escapeCsvCell(unitPrice.toFixed(2)),
+              escapeCsvCell(item.price.toFixed(2)),
+            ].join(',')
+          );
+        }
+      }
+    }
+
+    const csvContent = '\uFEFF' + rows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.setAttribute('download', `cebio-harcamalar-${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const topCategory =
     summary.category_breakdown.length > 0 ? summary.category_breakdown[0] : null;
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      {/* Termal Fiş Yazdırma & Doğrudan Kağıt Üzerinde Düzenleme Modalı */}
+      <ThermalReceiptModal
+        isOpen={isThermalOpen}
+        isAnalyzing={isUploading}
+        receipt={thermalReceipt}
+        initialEditMode={thermalInitialEdit}
+        onClose={() => {
+          if (thermalReceipt && !thermalInitialEdit) {
+            const totalQty = getReceiptTotalQuantity(thermalReceipt);
+            setUploadSuccess(
+              `"${thermalReceipt.merchant}" fişi onaylandı! (${formatQuantity(totalQty)} ürün • ${formatCurrency(thermalReceipt.total_amount)})`
+            );
+          }
+          setIsThermalOpen(false);
+        }}
+        onSaved={async (updated) => {
+          setThermalReceipt(updated);
+          setIsThermalOpen(false);
+          setExpandedReceiptId(updated.id);
+          setUploadSuccess(
+            `"${updated.merchant}" fişi başarıyla güncellendi (${formatCurrency(updated.total_amount)}).`
+          );
+          await fetchDashboardData();
+        }}
+      />
+
       {/* Üst Navigasyon / Header */}
       <header className="sticky top-0 z-30 border-b border-slate-300/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/85 backdrop-blur-md shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -476,35 +585,19 @@ export default function App() {
                   : 'bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:border-emerald-500/80 dark:hover:bg-slate-800/50'
               }`}
             >
-              {isUploading ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 flex items-center justify-center text-emerald-500">
-                    <Loader2 className="w-7 h-7 animate-spin" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                      Fiş Görseli Analiz Ediliyor...
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Gemini AI ürünleri ve kategorileri çıkarıyor, lütfen bekleyin.
-                    </p>
-                  </div>
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-emerald-600 dark:text-emerald-500 transition">
+                  <UploadCloud className="w-6 h-6" />
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-emerald-600 dark:text-emerald-500 transition">
-                    <UploadCloud className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      Fiş fotoğrafını buraya sürükleyin
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Maksimum netlik için fişin tamamının görünür olduğundan emin olun
-                    </p>
-                  </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Fiş fotoğrafını buraya sürükleyin
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Maksimum netlik için fişin tamamının görünür olduğundan emin olun
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Mobil Öncelikli Aksiyon Butonları: Dosya Seçin & Kamerayla Çek */}
@@ -642,7 +735,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* Son Fişler Tablosu & Arama/Filtreleme */}
+        {/* Son Fişler Tablosu & Arama/Filtreleme + CSV İndirme */}
         <section className={`${CARD_SURFACE_CLASS} overflow-hidden`}>
           <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
@@ -651,11 +744,11 @@ export default function App() {
                 Son Fişler ve Harcama Ürünleri
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Bir fiş satırına tıklayarak içindeki ürünleri detaylı inceleyebilirsiniz.
+                Bir fiş satırına tıklayarak ürünleri inceleyebilir veya "Düzenle" ile termal fiş üzerinde güncelleyebilirsiniz.
               </p>
             </div>
 
-            {/* Filtre Barı */}
+            {/* Filtre Barı ve CSV İndir Butonu */}
             <div className="flex flex-wrap items-center gap-2.5">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -699,6 +792,17 @@ export default function App() {
                   Temizle
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                disabled={receipts.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition"
+                title="Filtrelenmiş fişleri CSV olarak indir"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>CSV İndir</span>
+              </button>
             </div>
           </div>
 
@@ -762,19 +866,32 @@ export default function App() {
                             className="py-4 px-6 text-right"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button
-                              onClick={() => handleDelete(receipt.id, receipt.merchant)}
-                              disabled={deletingId === receipt.id}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-500 hover:bg-rose-500/10 disabled:opacity-50 transition"
-                              title="Fişi Sil"
-                            >
-                              {deletingId === receipt.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-3.5 h-3.5" />
-                              )}
-                              <span>Sil</span>
-                            </button>
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenThermalEdit(receipt)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 transition"
+                                title="Termal Fiş Üzerinde Düzenle"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Düzenle</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(receipt.id, receipt.merchant)}
+                                disabled={deletingId === receipt.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-500 hover:bg-rose-500/10 disabled:opacity-50 transition"
+                                title="Fişi Sil"
+                              >
+                                {deletingId === receipt.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                                <span>Sil</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
 

@@ -25,6 +25,21 @@ export interface Receipt {
   items: ReceiptItem[];
 }
 
+export interface ReceiptItemUpdatePayload {
+  name: string;
+  price: number;
+  quantity: number;
+  unit_price: number | null;
+  category: string;
+}
+
+export interface ReceiptUpdatePayload {
+  merchant: string;
+  date: string;
+  total_amount: number;
+  items: ReceiptItemUpdatePayload[];
+}
+
 export interface CategoryBreakdown {
   category: string;
   total_amount: number;
@@ -81,6 +96,18 @@ export async function getReceipts(params?: GetReceiptsParams): Promise<Receipt[]
  */
 export async function getSummary(): Promise<ReceiptSummary> {
   const response = await apiClient.get<ReceiptSummary>('/api/v1/receipts/summary');
+  return response.data;
+}
+
+/**
+ * Belirtilen ID'ye sahip fişi ve ürünlerini günceller.
+ * PUT /api/v1/receipts/{id}
+ */
+export async function updateReceipt(
+  id: number,
+  payload: ReceiptUpdatePayload
+): Promise<Receipt> {
+  const response = await apiClient.put<Receipt>(`/api/v1/receipts/${id}`, payload);
   return response.data;
 }
 

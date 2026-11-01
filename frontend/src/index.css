@@ -8,7 +8,7 @@
   }
 }
 
-/* İnce ve zarif özel kaydırma çubuğu (gerektiğinde) */
+/* İnce ve zarif özel kaydırma çubuğu */
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
@@ -30,4 +30,41 @@
 
 .dark .scrollbar-thin::-webkit-scrollbar-thumb {
   background-color: rgba(71, 85, 105, 0.6);
+}
+
+/* Termal Fiş Kağıdı Görünümü ve Tırtıklı (Sawtooth/Zigzag) Alt Kenar */
+.thermal-paper {
+  background-color: #fcfbf7;
+  color: #1e293b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.35), 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.thermal-sawtooth-bottom {
+  position: relative;
+  height: 14px;
+  width: 100%;
+  background-color: transparent;
+  background-image:
+    linear-gradient(135deg, #fcfbf7 50%, transparent 50%),
+    linear-gradient(225deg, #fcfbf7 50%, transparent 50%);
+  background-position: 0 0, 0 0;
+  background-size: 16px 14px;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.18));
+}
+
+@keyframes thermalPrintLine {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-thermal-line {
+  animation: thermalPrintLine 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

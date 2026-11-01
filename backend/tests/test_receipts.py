@@ -255,3 +255,47 @@ def test_delete_receipt_and_cascade_items(client: TestClient, db_session: Sessio
         select(ReceiptItem).where(ReceiptItem.receipt_id == receipt_id)
     ).all()
     assert len(remaining_items) == 0
+
+
+def test_update_receipt(client: TestClient) -> None:
+    mock_parsed = _make_mock_receipt()
+
+    with patch(
+        "app.api.routes.receipt_parser_service.parse_receipt_image",
+        return_value=mock_parsed,
+    ):
+        upload_res = client.post(
+            "/api/v1/receipts/upload",
+            files={"file": ("fis.jpeg", b"data", "image/jpeg")},
+        )
+    assert upload_res.status_code == 201
+    receipt_id = upload_res.json()["id"]
+
+    update_payload = {
+        "merchant": "Macrocenter",
+        "date": "2026-11-02",
+        "total_amount": 320.0,
+        "items": [
+            {
+                "name": "Organik Kahve",
+                "quantity": 2.0,
+                "unit_price": 160.0,
+                "price": 320.0,
+                "category": "İçecek",
+            }
+        ],
+    }
+
+    put_res = client.put(f"/api/v1/receipts/{receipt_id}", json=update_payload)
+    assert put_res.status_code == 200
+    updated = put_res.json()
+    assert updated["merchant"] == "Macrocenter"
+    assert updated["date"] == "2026-11-02"
+    assert updated["total_amount"] == 320.0
+    assert len(updated["items"]) == 1
+    assert updated["items"][0]["name"] == "Organik Kahve"
+    assert updated["items"][0]["quantity"] == 2.0
+    assert updated["items"][0]["unit_price"] == 160.0
+
+    not_found_res = client.put("/api/v1/receipts/9999", json=update_payload)
+    assert not_found_res.status_code == 404

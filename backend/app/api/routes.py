@@ -11,6 +11,7 @@ from app.schemas.receipt import (
     CategoryBreakdown,
     ReceiptResponse,
     ReceiptSummaryResponse,
+    ReceiptUpdate,
 )
 from app.services.receipt_parser import receipt_parser_service
 
@@ -201,6 +202,50 @@ def get_receipt(receipt_id: int, db: Session = Depends(get_db)) -> Receipt:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"ID={receipt_id} olan fiş bulunamadı.",
         )
+    return receipt
+
+
+@router.put(
+    "/{receipt_id}",
+    response_model=ReceiptResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Fişi ve ürünlerini güncelle",
+    description="Belirtilen ID'ye sahip fişin mağaza adını, tarihini, toplam tutarını ve ürün listesini günceller.",
+)
+def update_receipt(
+    receipt_id: int,
+    payload: ReceiptUpdate,
+    db: Session = Depends(get_db),
+) -> Receipt:
+    stmt = select(Receipt).where(Receipt.id == receipt_id)
+    receipt = db.scalars(stmt).first()
+    if not receipt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID={receipt_id} olan fiş bulunamadı.",
+        )
+
+    receipt.merchant = payload.merchant.strip()
+    receipt.date = payload.date.strip()
+    receipt.total_amount = round(float(payload.total_amount), 2)
+
+    receipt.items = [
+        ReceiptItem(
+            name=item.name.strip(),
+            price=round(float(item.price), 2),
+            quantity=item.quantity if item.quantity and item.quantity > 0 else 1.0,
+            unit_price=(
+                round(float(item.unit_price), 2)
+                if item.unit_price is not None
+                else round(float(item.price) / (item.quantity if item.quantity > 0 else 1.0), 2)
+            ),
+            category=item.category.strip(),
+        )
+        for item in payload.items
+    ]
+
+    db.commit()
+    db.refresh(receipt)
     return receipt
 
 
