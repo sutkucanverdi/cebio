@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -155,10 +155,34 @@ def get_receipts_summary(db: Session = Depends(get_db)) -> ReceiptSummaryRespons
 @router.get(
     "",
     response_model=List[ReceiptResponse],
-    summary="Kaydedilen tüm fişleri listele",
+    summary="Kaydedilen tüm fişleri listele ve filtrele",
+    description="Kaydedilen fişleri mağaza adına (küçük/büyük harf duyarsız) ve tarih aralığına (YYYY-MM-DD) göre filtreleyerek listeler.",
 )
-def list_receipts(db: Session = Depends(get_db)) -> List[Receipt]:
-    stmt = select(Receipt).order_by(Receipt.id.desc())
+def list_receipts(
+    merchant: Optional[str] = Query(
+        None,
+        description="Mağaza/market adına göre küçük-büyük harf duyarsız arama",
+    ),
+    start_date: Optional[str] = Query(
+        None,
+        description="Başlangıç tarihi filtresi (YYYY-MM-DD, dahil)",
+    ),
+    end_date: Optional[str] = Query(
+        None,
+        description="Bitiş tarihi filtresi (YYYY-MM-DD, dahil)",
+    ),
+    db: Session = Depends(get_db),
+) -> List[Receipt]:
+    stmt = select(Receipt)
+
+    if merchant:
+        stmt = stmt.where(Receipt.merchant.ilike(f"%{merchant.strip()}%"))
+    if start_date:
+        stmt = stmt.where(Receipt.date >= start_date.strip())
+    if end_date:
+        stmt = stmt.where(Receipt.date <= end_date.strip())
+
+    stmt = stmt.order_by(Receipt.id.desc())
     return list(db.scalars(stmt).all())
 
 
@@ -176,3 +200,23 @@ def get_receipt(receipt_id: int, db: Session = Depends(get_db)) -> Receipt:
             detail=f"ID={receipt_id} olan fiş bulunamadı.",
         )
     return receipt
+
+
+@router.delete(
+    "/{receipt_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Fişi ve alt kalemlerini sil",
+    description="Belirtilen ID'ye sahip fişi ve ona bağlı tüm harcama kalemlerini veritabanından siler.",
+)
+def delete_receipt(receipt_id: int, db: Session = Depends(get_db)) -> Response:
+    stmt = select(Receipt).where(Receipt.id == receipt_id)
+    receipt = db.scalars(stmt).first()
+    if not receipt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID={receipt_id} olan fiş bulunamadı.",
+        )
+
+    db.delete(receipt)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
