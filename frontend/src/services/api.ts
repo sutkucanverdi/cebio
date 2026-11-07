@@ -1,10 +1,89 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import { storageGet, storageSet } from '../lib/storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const TOKEN_KEY = 'cebio.token';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 90_000, // Fiş analizi birkaç saniye sürebilir
 });
+
+// --- Token yönetimi ---
+
+let unauthorizedHandler: (() => void) | null = null;
+
+export function getStoredToken(): string | null {
+  return storageGet(TOKEN_KEY);
+}
+
+export function setStoredToken(token: string | null): void {
+  storageSet(TOKEN_KEY, token);
+}
+
+/** Oturum düştüğünde (401) çağrılacak fonksiyonu kaydeder (AuthContext kullanır). */
+export function onUnauthorized(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
+apiClient.interceptors.request.use((config) => {
+  const token = getStoredToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    const isAuthCall = error.config?.url?.startsWith('/api/v1/auth/login') ||
+      error.config?.url?.startsWith('/api/v1/auth/register');
+    if (error.response?.status === 401 && !isAuthCall) {
+      setStoredToken(null);
+      unauthorizedHandler?.();
+    }
+    return Promise.reject(error);
+  }
+);
+
+/** API hatasından kullanıcıya gösterilebilir Türkçe mesaj çıkarır. */
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const detail = err.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail) && detail.length > 0) {
+      // FastAPI/Pydantic doğrulama hataları İngilizce gelir; alana göre Türkçe mesaj gösterilir.
+      const field = String(detail[0]?.loc?.[detail[0].loc.length - 1] ?? '');
+      const fieldMessages: Record<string, string> = {
+        email: 'Lütfen geçerli bir e-posta adresi girin.',
+        password: 'Şifre en az 8 karakter olmalı (en fazla 72 bayt).',
+        full_name: 'Ad soyad çok uzun.',
+        start_date: 'Başlangıç tarihi geçersiz.',
+        end_date: 'Bitiş tarihi geçersiz.',
+      };
+      return fieldMessages[field] ?? 'Girilen bilgiler geçersiz. Lütfen kontrol edip tekrar deneyin.';
+    }
+    if (err.code === 'ECONNABORTED') return 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.';
+    if (!err.response) return 'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.';
+  }
+  return fallback;
+}
+
+// --- Tipler ---
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
 
 export interface ReceiptItem {
   id: number;
@@ -52,71 +131,80 @@ export interface ReceiptSummary {
   category_breakdown: CategoryBreakdown[];
 }
 
-export interface GetReceiptsParams {
+export interface ReceiptFilters {
   merchant?: string;
   category?: string;
   start_date?: string;
   end_date?: string;
 }
 
-/**
- * Fiş görselini yükler ve Gemini AI ile ayrıştırılan kaydı döner.
- * POST /api/v1/receipts/upload
- */
+function cleanParams(params: ReceiptFilters | undefined, keys: (keyof ReceiptFilters)[]) {
+  const out: Record<string, string> = {};
+  for (const key of keys) {
+    const value = params?.[key]?.trim();
+    if (value) out[key] = value;
+  }
+  return out;
+}
+
+// --- Auth uç noktaları ---
+
+export async function register(email: string, password: string, fullName?: string): Promise<TokenResponse> {
+  const res = await apiClient.post<TokenResponse>('/api/v1/auth/register', {
+    email,
+    password,
+    full_name: fullName || null,
+  });
+  return res.data;
+}
+
+export async function login(email: string, password: string): Promise<TokenResponse> {
+  const res = await apiClient.post<TokenResponse>('/api/v1/auth/login', { email, password });
+  return res.data;
+}
+
+export async function getMe(): Promise<User> {
+  const res = await apiClient.get<User>('/api/v1/auth/me');
+  return res.data;
+}
+
+export async function deleteAccount(): Promise<void> {
+  await apiClient.delete('/api/v1/auth/me');
+}
+
+// --- Fiş uç noktaları ---
+
+/** POST /api/v1/receipts/upload — fiş görselini yükler ve Gemini ile ayrıştırır. */
 export async function uploadReceipt(file: File): Promise<Receipt> {
   const formData = new FormData();
   formData.append('file', file);
-
-  const response = await apiClient.post<Receipt>('/api/v1/receipts/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await apiClient.post<Receipt>('/api/v1/receipts/upload', formData);
   return response.data;
 }
 
-/**
- * Kaydedilen fişleri opsiyonel filtrelerle listeler.
- * GET /api/v1/receipts
- */
-export async function getReceipts(params?: GetReceiptsParams): Promise<Receipt[]> {
-  const cleanParams: Record<string, string> = {};
-  if (params?.merchant?.trim()) cleanParams.merchant = params.merchant.trim();
-  if (params?.category?.trim()) cleanParams.category = params.category.trim();
-  if (params?.start_date?.trim()) cleanParams.start_date = params.start_date.trim();
-  if (params?.end_date?.trim()) cleanParams.end_date = params.end_date.trim();
-
+/** GET /api/v1/receipts — fişleri opsiyonel filtrelerle listeler. */
+export async function getReceipts(params?: ReceiptFilters): Promise<Receipt[]> {
   const response = await apiClient.get<Receipt[]>('/api/v1/receipts', {
-    params: cleanParams,
+    params: cleanParams(params, ['merchant', 'category', 'start_date', 'end_date']),
   });
   return response.data;
 }
 
-/**
- * Genel harcama özetini ve kategori bazlı kırılımı getirir.
- * GET /api/v1/receipts/summary
- */
-export async function getSummary(): Promise<ReceiptSummary> {
-  const response = await apiClient.get<ReceiptSummary>('/api/v1/receipts/summary');
+/** GET /api/v1/receipts/summary — filtrelere uyan fişlerin toplamı ve kategori kırılımı. */
+export async function getSummary(params?: ReceiptFilters): Promise<ReceiptSummary> {
+  const response = await apiClient.get<ReceiptSummary>('/api/v1/receipts/summary', {
+    params: cleanParams(params, ['merchant', 'start_date', 'end_date']),
+  });
   return response.data;
 }
 
-/**
- * Belirtilen ID'ye sahip fişi ve ürünlerini günceller.
- * PUT /api/v1/receipts/{id}
- */
-export async function updateReceipt(
-  id: number,
-  payload: ReceiptUpdatePayload
-): Promise<Receipt> {
+/** PUT /api/v1/receipts/{id} */
+export async function updateReceipt(id: number, payload: ReceiptUpdatePayload): Promise<Receipt> {
   const response = await apiClient.put<Receipt>(`/api/v1/receipts/${id}`, payload);
   return response.data;
 }
 
-/**
- * Belirtilen ID'ye sahip fişi ve bağlı ürünlerini siler.
- * DELETE /api/v1/receipts/{id}
- */
+/** DELETE /api/v1/receipts/{id} */
 export async function deleteReceipt(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/receipts/${id}`);
 }

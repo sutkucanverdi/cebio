@@ -1,15 +1,20 @@
+import logging
+from datetime import date
 from typing import Optional
 
 from google import genai
 from google.genai import types
+from pydantic import ValidationError
 
 from app.core.config import settings
 from app.schemas.receipt import ParsedReceipt
 
+logger = logging.getLogger("cebio")
+
 SYSTEM_PROMPT = """Sen Cebio adlı otonom cüzdan denetçisinin uzman fiş ayrıştırma motorusun.
 Gönderilen fiş veya fatura fotoğrafını dikkatlice incele ve aşağıdaki kurallara göre verileri çıkar:
 1. merchant: Mağaza, market veya işletmenin adını temiz ve okunaklı şekilde yaz.
-2. date: Fiş üzerindeki tarihi mutlaka YYYY-MM-DD formatına dönüştür (Örn: 2026-11-01). Eğer fişte tarih okunamıyorsa bugünün tarihini YYYY-MM-DD olarak varsay.
+2. date: Fiş üzerindeki tarihi mutlaka YYYY-MM-DD formatına dönüştür (Örn: 2026-11-01). Eğer fişte tarih okunamıyorsa kullanıcı mesajında verilen bugünün tarihini kullan.
 3. total_amount: Fişin genel toplam (TOPLAM / GENEL TOPLAM) tutarını float olarak çıkar.
 4. items: Fişteki her bir ürünü ayrı ayrı çıkar:
    - name: Ürün adını düzeltilmiş ve anlaşılır şekilde yaz (adet veya çarpan bilgisini ürün adına ekleme).
@@ -18,6 +23,10 @@ Gönderilen fiş veya fatura fotoğrafını dikkatlice incele ve aşağıdaki ku
    - price: İlgili satırın toplam tutarını float olarak yaz (Örn: "2X 200,00" ise price: 400.0).
    - category: Ürünü en uygun kategoriye ata (Gıda, Atıştırmalık, İçecek, Temizlik, Kişisel Bakım, Ev & Yaşam, Elektronik, Giyim, Restoran & Kafe, Ulaşım, Diğer).
 """
+
+
+class ReceiptParseError(Exception):
+    """Kullanıcıya gösterilebilecek, güvenli mesaj içeren ayrıştırma hatası."""
 
 
 class ReceiptParserService:
@@ -32,29 +41,26 @@ class ReceiptParserService:
     def client(self) -> genai.Client:
         api_key = self.api_key or settings.GEMINI_API_KEY
         if not api_key or api_key == "your_gemini_api_key_here":
-            raise ValueError(
-                "GEMINI_API_KEY tanımlanmamış. Lütfen backend/.env dosyasına geçerli bir Gemini API anahtarı ekleyin."
-            )
+            logger.error("GEMINI_API_KEY tanımlanmamış (backend/.env).")
+            raise ReceiptParseError("Fiş analiz servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.")
         if self._client is None:
             self._client = genai.Client(api_key=api_key)
         return self._client
 
-    def parse_receipt_image(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> ParsedReceipt:
+    async def parse_receipt_image(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> ParsedReceipt:
         """
-        Gelen fiş görselini `google-genai` SDK ile Gemini modeline gönderir
-        ve `ParsedReceipt` şemasına uygun Structured JSON çıktısı olarak geri döner.
+        Fiş görselini Gemini'ye asenkron olarak gönderir (event loop'u bloklamaz)
+        ve `ParsedReceipt` şemasına uygun yapılandırılmış çıktıyı döner.
         """
-        image_part = types.Part.from_bytes(
-            data=image_bytes,
-            mime_type=mime_type,
-        )
+        image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
 
         prompt = (
+            f"Bugünün tarihi: {date.today().isoformat()}. "
             "Bu fiş görselini analiz et; mağaza adını, tarihi, genel toplamı ve tüm ürünleri "
             "(quantity, unit_price ve satır toplam tutarı price dahil) istenen JSON şemasına uygun olarak çıkar."
         )
 
-        response = self.client.models.generate_content(
+        response = await self.client.aio.models.generate_content(
             model=self.model_name,
             contents=[prompt, image_part],
             config=types.GenerateContentConfig(
@@ -65,13 +71,17 @@ class ReceiptParserService:
             ),
         )
 
-        if response.parsed is not None and isinstance(response.parsed, ParsedReceipt):
+        if isinstance(response.parsed, ParsedReceipt):
             return response.parsed
 
         if not response.text:
-            raise ValueError("Gemini modelinden yapılandırılmış fiş verisi alınamadı.")
+            raise ReceiptParseError("Fiş okunamadı. Lütfen daha net bir fotoğrafla tekrar deneyin.")
 
-        return ParsedReceipt.model_validate_json(response.text)
+        try:
+            return ParsedReceipt.model_validate_json(response.text)
+        except ValidationError as exc:
+            logger.warning("Gemini çıktısı şemaya uymadı: %s", exc)
+            raise ReceiptParseError("Fiş okunamadı. Lütfen daha net bir fotoğrafla tekrar deneyin.") from exc
 
 
 receipt_parser_service = ReceiptParserService()
