@@ -33,14 +33,14 @@ def _upload(client: TestClient, parsed: ParsedReceipt) -> dict:
 def test_register_login_me(anon_client: TestClient) -> None:
     res = anon_client.post(
         "/api/v1/auth/register",
-        json={"email": "Ali@Example.com", "password": "uzun-sifre-1", "full_name": "Ali"},
+        json={"email": "Ali@Example.com", "password": "uzun-sifre-1", "full_name": "Ali", "accept_terms": True},
     )
     assert res.status_code == 201
     body = res.json()
     assert body["token_type"] == "bearer"
     assert body["user"]["email"] == "ali@example.com"  # küçük harfe normalize edilir
 
-    dup = anon_client.post("/api/v1/auth/register", json={"email": "ali@example.com", "password": "baska-sifre-1"})
+    dup = anon_client.post("/api/v1/auth/register", json={"email": "ali@example.com", "password": "baska-sifre-1", "accept_terms": True})
     assert dup.status_code == 409
 
     bad = anon_client.post("/api/v1/auth/login", json={"email": "ali@example.com", "password": "yanlis-sifre"})
@@ -66,7 +66,7 @@ def test_oauth2_form_token_endpoint(anon_client: TestClient, register: Callable[
 
 
 def test_short_password_rejected(anon_client: TestClient) -> None:
-    res = anon_client.post("/api/v1/auth/register", json={"email": "a@example.com", "password": "kisa"})
+    res = anon_client.post("/api/v1/auth/register", json={"email": "a@example.com", "password": "kisa", "accept_terms": True})
     assert res.status_code == 422
 
 
@@ -212,3 +212,18 @@ def test_receipts_sorted_by_date_desc(client: TestClient) -> None:
     _upload(client, _parsed("Orta", "2026-06-01"))
     merchants = [r["merchant"] for r in client.get("/api/v1/receipts").json()]
     assert merchants == ["Yeni", "Orta", "Eski"]
+
+
+def test_register_requires_terms_consent(anon_client: TestClient, db_session: Session) -> None:
+    base = {"email": "kvkk@example.com", "password": "uzun-sifre-1"}
+    assert anon_client.post("/api/v1/auth/register", json=base).status_code == 422
+    assert anon_client.post("/api/v1/auth/register", json={**base, "accept_terms": False}).status_code == 422
+
+    res = anon_client.post("/api/v1/auth/register", json={**base, "accept_terms": True})
+    assert res.status_code == 201
+    assert res.json()["user"]["terms_version"] == settings.TERMS_VERSION
+
+    from app.models.user import User
+
+    user = db_session.scalars(select(User).where(User.email == "kvkk@example.com")).one()
+    assert user.terms_accepted_at is not None

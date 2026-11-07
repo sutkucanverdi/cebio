@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Receipt as ReceiptIcon, Repeat, Sparkles } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { syncStatusBar } from '../lib/native';
 import { storageGet, storageSet } from '../lib/storage';
 import { getApiErrorMessage } from '../services/api';
 import { AssistantMessage, AssistantView } from './AssistantView';
@@ -31,6 +32,7 @@ function useDarkMode(): [boolean, () => void] {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
     storageSet(THEME_KEY, darkMode ? 'dark' : 'light');
+    void syncStatusBar(darkMode);
   }, [darkMode]);
 
   return [darkMode, () => setDarkMode((v) => !v)];
@@ -75,7 +77,7 @@ export function Dashboard() {
         onDeleteAccount={() => void handleDeleteAccount()}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-safe space-y-6">
         <nav
           role="tablist"
           aria-label="Bölümler"

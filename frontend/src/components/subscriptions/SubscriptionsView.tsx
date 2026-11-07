@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  Bell,
+  BellOff,
   CalendarClock,
   ExternalLink,
   FileSearch,
@@ -29,6 +31,8 @@ import {
   STATUS_LABELS,
 } from '../../lib/subscriptions';
 import { useSubscriptions } from '../../hooks/useSubscriptions';
+import { isNative } from '../../lib/native';
+import { ReminderState, remindersPreference, setRemindersEnabled, syncReminders } from '../../lib/reminders';
 import {
   deleteSubscription,
   getApiErrorMessage,
@@ -102,6 +106,25 @@ export function SubscriptionsView({ refreshSignal }: { refreshSignal: number }) 
   useEffect(() => {
     if (refreshSignal > 0) void refresh();
   }, [refreshSignal, refresh]);
+
+  // Telefonda: abonelikler her değiştiğinde yenileme hatırlatıcılarını yeniden planla
+  const [reminderState, setReminderState] = useState<ReminderState>(() =>
+    !isNative() ? 'unsupported' : remindersPreference() ? 'on' : 'off'
+  );
+  useEffect(() => {
+    if (isLoading) return;
+    void syncReminders(subscriptions).then(setReminderState);
+  }, [subscriptions, isLoading]);
+
+  const toggleReminders = async () => {
+    const next = await setRemindersEnabled(reminderState !== 'on', subscriptions);
+    setReminderState(next);
+    if (next === 'denied') {
+      setErrorMsg('Bildirim izni verilmedi. Telefon ayarlarından Cebio için bildirimlere izin verebilirsiniz.');
+    } else if (next === 'on') {
+      setSuccessMsg('Hatırlatıcılar açık: yenilemeden 1 gün, deneme bitiminden 2 gün önce bildirim alacaksınız.');
+    }
+  };
 
   const visible = useMemo(
     () => (filter === 'all' ? subscriptions : subscriptions.filter((s) => s.status === filter)),
@@ -254,6 +277,29 @@ export function SubscriptionsView({ refreshSignal }: { refreshSignal: number }) 
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {reminderState === 'unsupported' ? (
+              <span
+                className="inline-flex items-center gap-1.5 text-[11px] text-slate-400"
+                title="Yenileme hatırlatıcıları telefon uygulamasında bildirim olarak gelir"
+              >
+                <Bell className="w-3.5 h-3.5" /> Hatırlatıcılar mobil uygulamada
+              </span>
+            ) : (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={reminderState === 'on'}
+                onClick={() => void toggleReminders()}
+                className={SECONDARY_BUTTON}
+              >
+                {reminderState === 'on' ? (
+                  <Bell className="w-4 h-4 text-emerald-500" />
+                ) : (
+                  <BellOff className="w-4 h-4" />
+                )}
+                Hatırlatıcılar {reminderState === 'on' ? 'açık' : 'kapalı'}
+              </button>
+            )}
             <button type="button" className={SECONDARY_BUTTON} onClick={() => setIsDetectOpen(true)}>
               <FileSearch className="w-4 h-4" />
               Ekstreden Bul

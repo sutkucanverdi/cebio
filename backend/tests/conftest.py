@@ -70,7 +70,7 @@ def register(anon_client: TestClient) -> Callable[..., str]:
     """Yeni kullanıcı kaydeder ve access token döner."""
 
     def _register(email: str = "utku@example.com", password: str = "gizli-sifre-123") -> str:
-        res = anon_client.post("/api/v1/auth/register", json={"email": email, "password": password})
+        res = anon_client.post("/api/v1/auth/register", json={"email": email, "password": password, "accept_terms": True})
         assert res.status_code == 201, res.text
         return res.json()["access_token"]
 

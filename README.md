@@ -13,6 +13,8 @@ cevaplayan bir cüzdan denetçisidir.
   (%80'de uyarı, aşımda kırmızı, ay sonu tahmini)
 - **AI asistan:** "Geçen ay ne kadar harcadım?", "Kahveye ne kadar veriyorum?" gibi soruları Gemini function
   calling ile kullanıcının gerçek verisinden cevaplar (yalnızca okuma araçları, kullanıcıya göre sınırlı, istek limiti)
+- **Mobil uygulama:** Capacitor ile Android ve iOS; telefonda abonelik yenileme ve deneme bitişi hatırlatıcıları
+- **KVKK:** gizlilik politikası, aydınlatma metni, kayıtta zorunlu açık rıza (sürümüyle birlikte kaydedilir), uygulama içinden hesap silme
 - **Ekstreden tespit:** banka/kart ekstresi (PDF, CSV, ekran görüntüsü) yüklenir; Gemini işlemleri okur,
   tekrarlayan ödemeler deterministik bir algoritmayla bulunur, kullanıcı onayladıklarını ekler
 
@@ -29,10 +31,16 @@ cebio/
 │   │   ├── schemas/             # Pydantic v2 şemaları
 │   │   ├── services/            # Gemini ayrıştırıcılar, abonelik tespiti, analytics, AI asistan + araçları
 │   │   └── main.py
-│   ├── tests/                   # pytest (51 test)
+│   ├── Dockerfile               # Production imajı (root olmayan kullanıcı, healthcheck)
+│   ├── tests/                   # pytest (52 test)
 │   ├── requirements.txt
 │   └── .env.example
-├── frontend/                    # React 18 + Vite + Tailwind + Recharts
+├── docker-compose.yml           # Postgres + API (production benzeri yerel ortam)
+├── YAYIN.md                     # Sunucu, Google Play ve App Store yayın rehberi
+├── frontend/                    # React 18 + Vite + Tailwind + Recharts + Capacitor 8
+│   ├── android/  ios/           # Capacitor yerel projeleri
+│   ├── assets/                  # Mağaza ikonları ve açılış ekranı kaynakları
+│   ├── public/gizlilik.html     # Gizlilik politikası + KVKK aydınlatma metni (kullanim-kosullari.html)
 │   └── src/
 │       ├── auth/                # AuthContext (oturum yönetimi)
 │       ├── components/          # Dashboard (sekmeler), ReceiptsView, TrendChart, BudgetsCard, AssistantView, subscriptions/
@@ -49,7 +57,7 @@ cebio/
 ```bash
 python -m venv venv
 venv\Scripts\Activate.ps1        # macOS/Linux: source venv/bin/activate
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
 cp backend/.env.example backend/.env
 ```
 
@@ -90,6 +98,20 @@ Varsayılan API adresi `http://localhost:8000`; değiştirmek için `VITE_API_BA
 ```bash
 python -m pytest
 ```
+
+```bash
+cd frontend && npm test
+```
+
+### Mobil uygulama
+
+```bash
+cd frontend
+npm run cap:sync        # web derlemesi + Android/iOS'a kopyala
+npx cap open android    # Android Studio'da aç
+```
+
+Mağaza derlemesi, imzalama ve sunucu kurulumu için: [YAYIN.md](YAYIN.md)
 
 ## API Özeti
 
