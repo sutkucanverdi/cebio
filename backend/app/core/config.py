@@ -1,22 +1,39 @@
+import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+logger = logging.getLogger("cebio")
+
+# Yalnızca DEBUG modunda kullanılan sabit geliştirme anahtarı. Production'da asla kullanılmaz.
+_DEV_JWT_SECRET = "cebio-dev-only-insecure-secret-change-me"
+
 
 class Settings(BaseSettings):
     APP_NAME: str = "Cebio API"
-    APP_VERSION: str = "0.1.0"
+    APP_VERSION: str = "0.2.0"
     DEBUG: bool = True
 
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'cebio.db'}"
     CORS_ORIGINS: str = "*"
+    # Uygulama açılırken Alembic migration'larını otomatik uygula (production'da deploy adımında da yapılabilir).
+    AUTO_MIGRATE: bool = True
+
+    # Kimlik doğrulama (JWT)
+    JWT_SECRET: str = ""
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 gün
+
+    # Yükleme limitleri
+    MAX_UPLOAD_MB: int = 10
 
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / ".env", ".env"),
@@ -24,11 +41,32 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @model_validator(mode="after")
+    def _finalize(self) -> "Settings":
+        # Göreli SQLite yolunu (sqlite:///./cebio.db) çalışma dizinine değil backend/ dizinine sabitle.
+        # Aksi halde uvicorn'u farklı klasörden başlatınca ikinci, boş bir veritabanı oluşuyordu.
+        prefix = "sqlite:///"
+        if self.DATABASE_URL.startswith(prefix) and not self.DATABASE_URL.startswith("sqlite:////"):
+            raw_path = self.DATABASE_URL[len(prefix):]
+            if raw_path and raw_path != ":memory:" and not Path(raw_path).is_absolute():
+                self.DATABASE_URL = f"{prefix}{(BASE_DIR / raw_path).resolve().as_posix()}"
+
+        if not self.JWT_SECRET:
+            if not self.DEBUG:
+                raise ValueError("JWT_SECRET tanımlanmamış. Production ortamında zorunludur.")
+            logger.warning("JWT_SECRET tanımlı değil; DEBUG için güvensiz geliştirme anahtarı kullanılıyor.")
+            self.JWT_SECRET = _DEV_JWT_SECRET
+        return self
+
     @property
     def cors_origins_list(self) -> List[str]:
         if self.CORS_ORIGINS.strip() == "*":
             return ["*"]
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.MAX_UPLOAD_MB * 1024 * 1024
 
 
 @lru_cache

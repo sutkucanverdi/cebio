@@ -1,67 +1,11 @@
-import sys
-from pathlib import Path
-from typing import Generator
 from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-# backend/ dizinini sys.path'e ekle (hem kök dizinden hem backend dizininden pytest çalıştırılabilsin)
-BACKEND_DIR = Path(__file__).resolve().parent.parent
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
-
-from app.core.database import Base, get_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models.receipt import ReceiptItem  # noqa: E402
-from app.schemas.receipt import ParsedReceipt, ParsedReceiptItem  # noqa: E402
-
-
-# Bellek içi (in-memory) izole SQLite test veritabanı
-TEST_ENGINE = create_engine(
-    "sqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(
-    bind=TEST_ENGINE,
-    autocommit=False,
-    autoflush=False,
-    expire_on_commit=False,
-)
-
-
-@pytest.fixture(autouse=True)
-def setup_test_db() -> Generator[None, None, None]:
-    Base.metadata.create_all(bind=TEST_ENGINE)
-    yield
-    Base.metadata.drop_all(bind=TEST_ENGINE)
-
-
-@pytest.fixture
-def db_session() -> Generator[Session, None, None]:
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
-
-
-@pytest.fixture
-def client(db_session: Session) -> Generator[TestClient, None, None]:
-    def override_get_db() -> Generator[Session, None, None]:
-        try:
-            yield db_session
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
+from app.models.receipt import ReceiptItem
+from app.schemas.receipt import ParsedReceipt, ParsedReceiptItem
 
 
 def _make_mock_receipt(

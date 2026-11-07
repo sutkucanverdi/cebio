@@ -1,35 +1,23 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import inspect, text
 
+from app.api.auth import router as auth_router
 from app.api.routes import router as receipts_router
 from app.core.config import settings
-from app.core.database import Base, engine
-import app.models.receipt  # noqa: F401 - Tabloların metadata'ya kaydolması için
+from app.core.migrations import run_migrations
 
-
-def _ensure_receipt_items_columns() -> None:
-    """Mevcut SQLite veritabanında quantity ve unit_price sütunları yoksa otomatik ekler."""
-    inspector = inspect(engine)
-    if "receipt_items" not in inspector.get_table_names():
-        return
-
-    existing_cols = {col["name"] for col in inspector.get_columns("receipt_items")}
-    with engine.begin() as conn:
-        if "quantity" not in existing_cols:
-            conn.execute(text("ALTER TABLE receipt_items ADD COLUMN quantity FLOAT NOT NULL DEFAULT 1.0"))
-        if "unit_price" not in existing_cols:
-            conn.execute(text("ALTER TABLE receipt_items ADD COLUMN unit_price FLOAT"))
+logging.basicConfig(level=logging.DEBUG if settings.DEBUG else logging.INFO)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Uygulama başlarken SQLite tablolarını oluştur ve eksik sütunları tamamla
-    Base.metadata.create_all(bind=engine)
-    _ensure_receipt_items_columns()
+    # Şema değişiklikleri Alembic ile yönetilir (backend/alembic/versions).
+    if settings.AUTO_MIGRATE:
+        run_migrations()
     yield
 
 
@@ -40,16 +28,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Frontend uygulaması için CORS Middleware
+# Kimlik doğrulama Authorization: Bearer başlığıyla yapıldığı için çerez (credentials) gerekmez.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Rotaları bağla
+app.include_router(auth_router)
 app.include_router(receipts_router)
 
 

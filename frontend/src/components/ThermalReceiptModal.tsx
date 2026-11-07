@@ -12,10 +12,12 @@ import {
   X,
 } from 'lucide-react';
 import {
+  getApiErrorMessage,
   Receipt,
   ReceiptItemUpdatePayload,
   updateReceipt,
 } from '../services/api';
+import { formatCurrency, formatQuantity } from '../lib/format';
 
 interface ThermalReceiptModalProps {
   isOpen: boolean;
@@ -39,19 +41,6 @@ const DEFAULT_CATEGORIES = [
   'Ulaşım',
   'Diğer',
 ];
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatQuantity(qty: number): string {
-  if (!qty || qty <= 0) return '1';
-  return Number.isInteger(qty) ? String(qty) : qty.toLocaleString('tr-TR');
-}
 
 export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
   isOpen,
@@ -245,9 +234,8 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
         items: normalizedItems,
       });
       onSaved(updated);
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setError(detail || 'Fiş kaydedilirken bir hata oluştu.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Fiş kaydedilirken bir hata oluştu.'));
     } finally {
       setIsSaving(false);
     }
