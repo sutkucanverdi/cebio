@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.models.budget import Budget
 from app.models.receipt import Receipt
+from app.models.transaction import Transaction
 from app.services.subscription_catalog import normalize_text
 
 CENT = Decimal("0.01")
@@ -86,6 +87,28 @@ def _receipts(
     return list(db.scalars(stmt.order_by(Receipt.date.desc(), Receipt.id.desc())).all())
 
 
+def _bank(
+    db: Session,
+    user_id: int,
+    start: Optional[dt.date] = None,
+    end: Optional[dt.date] = None,
+) -> List[Transaction]:
+    """Toplamlara katılan banka/kart harcamaları: TL olanlar ve fişle eşleşmemiş olanlar.
+
+    Fişle eşleşen işlem zaten fiş olarak (ürün ürün) sayıldığı için iki kez sayılmaz.
+    """
+    stmt = select(Transaction).where(
+        Transaction.user_id == user_id,
+        Transaction.matched_receipt_id.is_(None),
+        Transaction.currency == "TRY",
+    )
+    if start:
+        stmt = stmt.where(Transaction.date >= start)
+    if end:
+        stmt = stmt.where(Transaction.date <= end)
+    return list(db.scalars(stmt.order_by(Transaction.date.desc(), Transaction.id.desc())).all())
+
+
 def spending_summary(
     db: Session,
     user_id: int,
@@ -94,16 +117,17 @@ def spending_summary(
     category: Optional[str] = None,
     merchant: Optional[str] = None,
 ) -> dict:
-    """Tarih aralığındaki toplam harcama, kategori ve mağaza kırılımı.
+    """Tarih aralığındaki toplam harcama (fişler + banka/kart işlemleri), kategori ve işyeri kırılımı.
 
-    Kategori verilirse toplam yalnızca o kategorideki ürün satırlarının toplamıdır
-    (fiş toplamı değil), böylece 'markete ne kadar' sorusu doğru cevaplanır.
+    Kategori verilirse fişlerde yalnızca o kategorideki ürün satırları toplanır (fiş toplamı değil),
+    böylece 'markete ne kadar' sorusu doğru cevaplanır.
     """
     receipts = [r for r in _receipts(db, user_id, start, end) if matches(r.merchant, merchant)]
 
     by_category: Dict[str, Dict[str, Decimal]] = defaultdict(lambda: {"total": ZERO, "quantity": ZERO})
     by_merchant: Dict[str, Dict[str, Decimal]] = defaultdict(lambda: {"total": ZERO, "count": ZERO})
     total = ZERO
+    receipts_total = ZERO
     receipt_count = 0
 
     for receipt in receipts:
@@ -117,6 +141,7 @@ def spending_summary(
             amount = money(receipt.total_amount)
 
         total += amount
+        receipts_total += amount
         receipt_count += 1
         by_merchant[receipt.merchant]["total"] += amount
         by_merchant[receipt.merchant]["count"] += 1
@@ -124,13 +149,32 @@ def spending_summary(
             by_category[item.category]["total"] += money(item.price)
             by_category[item.category]["quantity"] += Decimal(str(item.quantity or 1))
 
+    bank_total = ZERO
+    transaction_count = 0
+    for tx in _bank(db, user_id, start, end):
+        if merchant and not (matches(tx.merchant, merchant) or matches(tx.description, merchant)):
+            continue
+        if not same_category(tx.category, category):
+            continue
+        amount = money(tx.amount)
+        total += amount
+        bank_total += amount
+        transaction_count += 1
+        by_merchant[tx.merchant]["total"] += amount
+        by_merchant[tx.merchant]["count"] += 1
+        by_category[tx.category]["total"] += amount
+        by_category[tx.category]["quantity"] += 1
+
     return {
         "start_date": start.isoformat() if start else None,
         "end_date": end.isoformat() if end else None,
         "category_filter": category or None,
         "merchant_filter": merchant or None,
         "total": total,
+        "receipts_total": receipts_total,
+        "bank_total": bank_total,
         "receipt_count": receipt_count,
+        "bank_transaction_count": transaction_count,
         "by_category": sorted(
             (
                 {"category": cat, "total": v["total"], "item_count": float(v["quantity"])}
@@ -141,7 +185,7 @@ def spending_summary(
         ),
         "top_merchants": sorted(
             (
-                {"merchant": m, "total": v["total"], "receipt_count": int(v["count"])}
+                {"merchant": m, "total": v["total"], "count": int(v["count"])}
                 for m, v in by_merchant.items()
             ),
             key=lambda x: x["total"],
@@ -151,7 +195,7 @@ def spending_summary(
 
 
 def monthly_trend(db: Session, user_id: int, months: int, today: dt.date) -> List[dict]:
-    """Son N ayın (içinde bulunulan ay dahil) toplam fiş harcaması; boş aylar 0 ile gelir."""
+    """Son N ayın (içinde bulunulan ay dahil) harcaması: fişler + banka/kart; boş aylar 0 ile gelir."""
     months = max(1, min(months, 24))
     ranges: List[MonthRange] = []
     year, month = today.year, today.month
@@ -162,16 +206,28 @@ def monthly_trend(db: Session, user_id: int, months: int, today: dt.date) -> Lis
             year, month = year - 1, 12
     ranges.reverse()
 
-    totals: Dict[str, Decimal] = {r.key: ZERO for r in ranges}
+    receipts_totals: Dict[str, Decimal] = {r.key: ZERO for r in ranges}
+    bank_totals: Dict[str, Decimal] = {r.key: ZERO for r in ranges}
     counts: Dict[str, int] = {r.key: 0 for r in ranges}
     for receipt in _receipts(db, user_id, ranges[0].start, ranges[-1].end):
         key = f"{receipt.date.year:04d}-{receipt.date.month:02d}"
-        if key in totals:
-            totals[key] += money(receipt.total_amount)
+        if key in receipts_totals:
+            receipts_totals[key] += money(receipt.total_amount)
             counts[key] += 1
+    for tx in _bank(db, user_id, ranges[0].start, ranges[-1].end):
+        key = f"{tx.date.year:04d}-{tx.date.month:02d}"
+        if key in bank_totals:
+            bank_totals[key] += money(tx.amount)
 
     return [
-        {"month": r.key, "label": r.label, "total": totals[r.key], "receipt_count": counts[r.key]}
+        {
+            "month": r.key,
+            "label": r.label,
+            "total": receipts_totals[r.key] + bank_totals[r.key],
+            "receipts_total": receipts_totals[r.key],
+            "bank_total": bank_totals[r.key],
+            "receipt_count": counts[r.key],
+        }
         for r in ranges
     ]
 
@@ -204,6 +260,42 @@ def search_items(
     return {"query": query, "match_count": len(found), "total": total, "items": found[: max(1, min(limit, 50))]}
 
 
+def search_transactions(
+    db: Session,
+    user_id: int,
+    query: Optional[str] = None,
+    start: Optional[dt.date] = None,
+    end: Optional[dt.date] = None,
+    category: Optional[str] = None,
+    limit: int = 20,
+) -> dict:
+    """Banka/kart işlemlerinde işyeri/açıklama ve kategoriye göre arama; eşleşenlerin toplamını döner."""
+    found = []
+    total = ZERO
+    for tx in _bank(db, user_id, start, end):
+        if query and not (matches(tx.merchant, query) or matches(tx.description, query)):
+            continue
+        if not same_category(tx.category, category):
+            continue
+        total += money(tx.amount)
+        found.append(
+            {
+                "date": tx.date.isoformat(),
+                "merchant": tx.merchant,
+                "description": tx.description,
+                "amount": money(tx.amount),
+                "category": tx.category,
+            }
+        )
+    return {
+        "query": query,
+        "category": category,
+        "match_count": len(found),
+        "total": total,
+        "transactions": found[: max(1, min(limit, 50))],
+    }
+
+
 def list_receipts_brief(
     db: Session,
     user_id: int,
@@ -231,7 +323,7 @@ def list_receipts_brief(
 
 
 def budget_status(db: Session, user_id: int, month: MonthRange, today: dt.date) -> List[dict]:
-    """Her bütçe için o ay harcanan, kalan, yüzde ve ay sonu tahmini."""
+    """Her bütçe için o ay harcanan (fişler + banka/kart), kalan, yüzde ve ay sonu tahmini."""
     budgets = list(
         db.scalars(select(Budget).where(Budget.user_id == user_id).order_by(Budget.category.is_not(None), Budget.category)).all()
     )
@@ -244,6 +336,9 @@ def budget_status(db: Session, user_id: int, month: MonthRange, today: dt.date) 
     for receipt in receipts:
         for item in receipt.items:
             category_spent[normalize_text(item.category)] += money(item.price)
+    for tx in _bank(db, user_id, month.start, month.end):
+        overall_spent += money(tx.amount)
+        category_spent[normalize_text(tx.category)] += money(tx.amount)
 
     days_in_month = (month.end - month.start).days + 1
     is_current = month.start <= today <= month.end

@@ -15,6 +15,18 @@ export const RECEIPT_CATEGORIES = [
   'Diğer',
 ];
 
+/** Banka/kart işlemleri için kategoriler (backend services/categories.py SPENDING_CATEGORIES ile aynı). */
+export const SPENDING_CATEGORIES = [
+  ...RECEIPT_CATEGORIES.slice(0, -1),
+  'Fatura & İletişim',
+  'Sağlık',
+  'Eğlence',
+  'Eğitim',
+  'Abonelik',
+  'Nakit & Transfer',
+  'Diğer',
+];
+
 const currencyFormatter = new Intl.NumberFormat('tr-TR', {
   style: 'currency',
   currency: 'TRY',

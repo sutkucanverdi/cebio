@@ -143,7 +143,7 @@ def test_tools_return_correct_numbers(client: TestClient, db_session: Session, s
     nov = execute_tool(ctx, "get_spending_summary", {"start_date": "2026-11-01", "end_date": "2026-11-30"})
     assert nov["total"] == 460.0
     assert nov["receipt_count"] == 2
-    assert nov["top_merchants"][0] == {"merchant": "Migros Jet", "total": 350.0, "receipt_count": 1}
+    assert nov["top_merchants"][0] == {"merchant": "Migros Jet", "total": 350.0, "count": 1}
 
     gida = execute_tool(ctx, "get_spending_summary", {"category": "gıda"})
     assert gida["total"] == 110.5  # yalnızca Gıda satırları, fiş toplamları değil

@@ -166,7 +166,7 @@ export async function login(email: string, password: string): Promise<TokenRespo
 }
 
 export async function getMe(): Promise<User> {
-  const res = await apiClient.get<User>('/api/v1/auth/me');
+  const res = await apiClient.get<User>('/api/v1/auth/me', { timeout: 10_000 });
   return res.data;
 }
 
@@ -334,6 +334,8 @@ export interface TrendPoint {
   month: string;
   label: string;
   total: number;
+  receipts_total: number;
+  bank_total: number;
   receipt_count: number;
 }
 
@@ -391,4 +393,86 @@ export interface ChatResponse {
 
 export async function sendChat(messages: ChatMessage[]): Promise<ChatResponse> {
   return (await apiClient.post<ChatResponse>('/api/v1/assistant/chat', { messages })).data;
+}
+
+// --- Banka / kart ekstresi içe aktarma ---
+
+export interface StatementRow {
+  date: string;
+  description: string;
+  amount: number;
+  currency: string;
+  category: string;
+}
+
+export interface PreviewRow extends StatementRow {
+  merchant: string;
+  already_imported: boolean;
+  matched_receipt: { id: number; merchant: string; date: string } | null;
+}
+
+export interface StatementPreview {
+  transactions_found: number;
+  new_count: number;
+  rows: PreviewRow[];
+  subscription_candidates: SubscriptionCandidate[];
+}
+
+export interface ImportResult {
+  import_id: number | null;
+  imported: number;
+  skipped_duplicates: number;
+  matched_receipts: number;
+}
+
+export interface StatementImport {
+  id: number;
+  filename: string;
+  period_start: string | null;
+  period_end: string | null;
+  created_at: string;
+  transaction_count: number;
+  total: number;
+}
+
+export interface BankTransaction {
+  id: number;
+  import_id: number;
+  date: string;
+  description: string;
+  merchant: string;
+  amount: number;
+  currency: string;
+  category: string;
+  matched_receipt_id: number | null;
+}
+
+export async function previewStatement(file: File): Promise<StatementPreview> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return (await apiClient.post<StatementPreview>('/api/v1/statements/preview', formData)).data;
+}
+
+export async function importStatement(filename: string, rows: StatementRow[]): Promise<ImportResult> {
+  return (await apiClient.post<ImportResult>('/api/v1/statements/import', { filename, rows })).data;
+}
+
+export async function getStatementImports(): Promise<StatementImport[]> {
+  return (await apiClient.get<StatementImport[]>('/api/v1/statements')).data;
+}
+
+export async function deleteStatementImport(id: number): Promise<void> {
+  await apiClient.delete(`/api/v1/statements/${id}`);
+}
+
+export async function getTransactions(): Promise<BankTransaction[]> {
+  return (await apiClient.get<BankTransaction[]>('/api/v1/transactions', { params: { limit: 2000 } })).data;
+}
+
+export async function updateTransactionCategory(id: number, category: string): Promise<BankTransaction> {
+  return (await apiClient.patch<BankTransaction>(`/api/v1/transactions/${id}`, { category })).data;
+}
+
+export async function deleteTransaction(id: number): Promise<void> {
+  await apiClient.delete(`/api/v1/transactions/${id}`);
 }

@@ -128,6 +128,16 @@ class StatementTransaction(BaseModel):
     description: str = Field(..., description="İşlem açıklaması / üye işyeri adı (ekstrede yazdığı gibi)")
     amount: float = Field(..., description="Harcama tutarı, pozitif sayı")
     currency: str = Field(default="TRY", description="Para birimi kodu, Örn: TRY, USD, EUR")
+    category: str = Field(
+        default="Diğer",
+        description=(
+            "Harcama kategorisi: Gıda (market), Atıştırmalık, İçecek, Temizlik, Kişisel Bakım, Ev & Yaşam, "
+            "Elektronik, Giyim, Restoran & Kafe, Ulaşım (akaryakıt, taksi, toplu taşıma, otopark), "
+            "Fatura & İletişim (elektrik, su, doğalgaz, internet, telefon), Sağlık (eczane, hastane), "
+            "Eğlence (sinema, konser, oyun), Eğitim, Abonelik (dijital servisler), "
+            "Nakit & Transfer (ATM, havale), Diğer"
+        ),
+    )
 
 
 class ParsedStatement(BaseModel):

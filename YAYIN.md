@@ -134,7 +134,8 @@ cd frontend && npm run cap:sync && cd android
 4. **Veri güvenliği formu** için toplanan veriler:
    - E-posta adresi, ad (isteğe bağlı) — hesap yönetimi
    - Finansal bilgi: satın alma geçmişi (fişler), diğer finansal bilgiler (abonelikler, bütçeler)
-   - Fotoğraflar (fiş) ve dosyalar (ekstre) — işlenir, **saklanmaz**
+   - Fotoğraflar (fiş) ve dosyalar (ekstre) — işlenir, dosyaların kendisi **saklanmaz**
+   - Finansal bilgi: kullanıcının onaylayıp içe aktardığı banka/kart işlemleri — **saklanır** (silinebilir)
    - Uygulama içi mesajlar (asistan soruları) — işlenir, saklanmaz
    - Veriler aktarım sırasında şifrelenir: Evet · Kullanıcı verisinin silinmesini isteyebilir: Evet (uygulama içinden)
    - Üçüncü tarafla paylaşım: Google (Gemini) — hizmetin sunulması için işleme

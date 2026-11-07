@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, TrendingDown, TrendingUp } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatCurrency } from '../lib/format';
 import { getTrend, TrendPoint } from '../services/api';
 import { CARD_SURFACE_CLASS } from './ui';
@@ -57,7 +57,7 @@ export function TrendChart({ darkMode, reloadKey }: TrendChartProps) {
             <BarChart3 className="w-4 h-4 text-indigo-500" />
             <h2 className="text-base font-semibold text-slate-900 dark:text-white">Aylık Harcama Trendi</h2>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Son 6 ayın fiş toplamları</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Son 6 ay • fişler + banka/kart</p>
         </div>
         {change !== null && (
           <span
@@ -81,7 +81,7 @@ export function TrendChart({ darkMode, reloadKey }: TrendChartProps) {
         </p>
       ) : !hasData ? (
         <p className="flex-1 min-h-[220px] flex items-center justify-center text-center text-xs text-slate-400">
-          Fiş ekledikçe aylık harcama grafiğiniz burada oluşacak.
+          Fiş veya ekstre ekledikçe aylık harcama grafiğiniz burada oluşacak.
         </p>
       ) : (
         <div className="h-[230px]">
@@ -105,16 +105,22 @@ export function TrendChart({ darkMode, reloadKey }: TrendChartProps) {
                   fontSize: 12,
                 }}
                 labelStyle={{ color: darkMode ? '#e2e8f0' : '#0f172a', fontWeight: 600 }}
-                formatter={(value: number, _name, item) => [
-                  `${formatCurrency(value)} • ${(item.payload as TrendPoint).receipt_count} fiş`,
-                  'Harcama',
-                ]}
+                formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                labelFormatter={(label: string, payload) => {
+                  const p = payload?.[0]?.payload as TrendPoint | undefined;
+                  return p ? `${label} • toplam ${formatCurrency(p.total)}` : label;
+                }}
               />
-              <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={44}>
-                {points.map((p, i) => (
-                  <Cell key={p.month} fill={i === points.length - 1 ? '#10b981' : darkMode ? '#334155' : '#cbd5e1'} />
-                ))}
-              </Bar>
+              <Legend
+                verticalAlign="top"
+                align="right"
+                height={24}
+                iconType="circle"
+                iconSize={8}
+                formatter={(value: string) => <span className="text-[11px] text-slate-500 dark:text-slate-400">{value}</span>}
+              />
+              <Bar dataKey="receipts_total" name="Fişler" stackId="s" fill="#10b981" maxBarSize={44} />
+              <Bar dataKey="bank_total" name="Banka/Kart" stackId="s" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={44} />
             </BarChart>
           </ResponsiveContainer>
         </div>
