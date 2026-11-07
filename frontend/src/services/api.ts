@@ -505,3 +505,40 @@ export async function getPlanStatus(): Promise<PlanStatus> {
 
 /** Plan limiti dolunca (HTTP 402) uygulamanın her yerinden "Planımı gör" uyarısı gösterebilmek için olay. */
 export const LIMIT_EVENT = 'cebio:limit-reached';
+
+// --- Aylık rapor ---
+
+export interface MonthlyReport {
+  month: string;
+  label: string;
+  is_complete: boolean;
+  total: number;
+  receipts_total: number;
+  bank_total: number;
+  previous_month: string;
+  previous_label: string;
+  previous_total: number;
+  change_pct: number | null;
+  daily_average: number;
+  receipt_count: number;
+  bank_transaction_count: number;
+  by_category: { category: string; total: number; previous_total: number; change_pct: number | null }[];
+  top_merchants: { merchant: string; total: number; count: number }[];
+  top_expenses: { date: string; merchant: string; amount: number; source: 'receipt' | 'bank' }[];
+  subscriptions: {
+    active_count: number;
+    monthly_fixed_try: number;
+    price_increases: { name: string; old_amount: number; new_amount: number; changed_at: string }[];
+    new_subscriptions: string[];
+  };
+  budgets: BudgetStatus[];
+  insights: string[];
+}
+
+export async function getMonthlyReport(month?: string): Promise<MonthlyReport> {
+  return (await apiClient.get<MonthlyReport>('/api/v1/reports/monthly', { params: month ? { month } : {} })).data;
+}
+
+export async function getReportMonths(): Promise<string[]> {
+  return (await apiClient.get<string[]>('/api/v1/reports/months')).data;
+}

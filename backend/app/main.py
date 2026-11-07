@@ -9,6 +9,7 @@ from app.api.analytics import router as analytics_router
 from app.api.assistant import router as assistant_router
 from app.api.auth import router as auth_router
 from app.api.billing import router as billing_router
+from app.api.reports import router as reports_router
 from app.api.routes import router as receipts_router
 from app.api.statements import router as statements_router
 from app.api.subscriptions import router as subscriptions_router
@@ -49,6 +50,7 @@ app.include_router(analytics_router)
 app.include_router(statements_router)
 app.include_router(assistant_router)
 app.include_router(billing_router)
+app.include_router(reports_router)
 
 
 @app.get("/health", tags=["System"])
