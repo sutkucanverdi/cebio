@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -6,6 +7,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.receipt import Receipt
@@ -57,6 +59,8 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> TokenRespons
         email=email,
         password_hash=hash_password(payload.password),
         full_name=(payload.full_name or "").strip() or None,
+        terms_version=settings.TERMS_VERSION,
+        terms_accepted_at=datetime.now(timezone.utc),
     )
     db.add(user)
     db.flush()

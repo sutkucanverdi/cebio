@@ -1,0 +1,34 @@
+# Production benzeri yerel ortam: Postgres + Cebio API
+#   JWT_SECRET=... GEMINI_API_KEY=... docker compose up --build
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cebio
+      POSTGRES_USER: cebio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cebio-local-only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cebio -d cebio"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEBUG: "False"
+      DATABASE_URL: postgresql+psycopg://cebio:${POSTGRES_PASSWORD:-cebio-local-only}@db:5432/cebio
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET tanımlayın}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,https://localhost,capacitor://localhost}
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

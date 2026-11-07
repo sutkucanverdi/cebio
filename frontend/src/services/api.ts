@@ -154,6 +154,8 @@ export async function register(email: string, password: string, fullName?: strin
     email,
     password,
     full_name: fullName || null,
+    // Kayıt ekranındaki zorunlu onay kutusu işaretlenmeden bu fonksiyon çağrılmaz.
+    accept_terms: true,
   });
   return res.data;
 }

@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # bcrypt maliyet faktörü (production için 12; testlerde hız için düşürülür)
     BCRYPT_ROUNDS: int = 12
 
+    # Yasal metinlerin geçerli sürümü (metin değişince artırın; onay kaydına yazılır)
+    TERMS_VERSION: str = "2026-11"
+
     # Yükleme limitleri
     MAX_UPLOAD_MB: int = 10
 

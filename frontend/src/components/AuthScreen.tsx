@@ -14,6 +14,7 @@ export function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,6 +25,10 @@ export function AuthScreen() {
     setError(null);
     if (isRegister && password.length < 8) {
       setError('Şifre en az 8 karakter olmalı.');
+      return;
+    }
+    if (isRegister && !acceptTerms) {
+      setError('Devam etmek için kullanım koşullarını ve gizlilik metnini onaylamanız gerekiyor.');
       return;
     }
     setIsSubmitting(true);
@@ -43,7 +48,7 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-slate-100 dark:bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 pt-safe pb-safe bg-slate-100 dark:bg-slate-950">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
@@ -121,6 +126,28 @@ export function AuthScreen() {
             )}
           </label>
 
+          {isRegister && (
+            <label className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              <input
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-emerald-600 shrink-0"
+              />
+              <span>
+                <a href="/kullanim-kosullari.html" target="_blank" rel="noopener" className="font-semibold text-emerald-700 dark:text-emerald-400 underline">
+                  Kullanım Koşulları
+                </a>
+                'nı ve{' '}
+                <a href="/gizlilik.html" target="_blank" rel="noopener" className="font-semibold text-emerald-700 dark:text-emerald-400 underline">
+                  Gizlilik Politikası / KVKK Aydınlatma Metni
+                </a>
+                'ni okudum. Fiş, ekstre ve sorularımın analiz için yurt dışındaki yapay zeka servisine (Google Gemini)
+                aktarılmasına açık rıza veriyorum.
+              </span>
+            </label>
+          )}
+
           {error && (
             <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -137,6 +164,12 @@ export function AuthScreen() {
             {isRegister ? 'Hesap Oluştur' : 'Giriş Yap'}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-[11px] text-slate-400">
+          <a href="/gizlilik.html" target="_blank" rel="noopener" className="hover:underline">Gizlilik</a>
+          {' • '}
+          <a href="/kullanim-kosullari.html" target="_blank" rel="noopener" className="hover:underline">Kullanım Koşulları</a>
+        </p>
       </div>
     </div>
   );

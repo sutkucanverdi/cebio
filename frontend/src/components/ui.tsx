@@ -1,5 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { useAndroidBack } from '../lib/native';
 
 export const CARD_SURFACE_CLASS =
   'rounded-2xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow';
@@ -67,6 +68,8 @@ interface ModalProps {
 }
 
 export function Modal({ title, onClose, children, footer, wide = false }: ModalProps) {
+  // Android geri tuşu pencereyi kapatsın (uygulamadan çıkmasın)
+  useAndroidBack(onClose);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -104,9 +107,9 @@ export function Modal({ title, onClose, children, footer, wide = false }: ModalP
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-5 py-4 overflow-y-auto">{children}</div>
+        <div className={`px-5 py-4 overflow-y-auto ${footer ? '' : 'pb-safe-plus'}`}>{children}</div>
         {footer && (
-          <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap justify-end gap-2">
+          <div className="px-5 py-3 pb-safe-plus border-t border-slate-200 dark:border-slate-800 flex flex-wrap justify-end gap-2">
             {footer}
           </div>
         )}

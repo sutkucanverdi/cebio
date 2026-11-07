@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -8,6 +8,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72, description="En az 8 karakter")
     full_name: Optional[str] = Field(default=None, max_length=255)
+    accept_terms: Literal[True] = Field(
+        ...,
+        description="Kullanım koşulları, gizlilik politikası ve KVKK aydınlatma metni onayı (zorunlu)",
+    )
 
     @field_validator("password")
     @classmethod
@@ -28,6 +32,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     created_at: datetime
+    terms_version: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

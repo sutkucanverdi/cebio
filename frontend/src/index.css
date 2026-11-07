@@ -3,8 +3,37 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Çentik / durum çubuğu / gezinme çubuğu boşlukları.
+       iOS ve yeni Android WebView env() değerini, Capacitor 8 (SystemBars: css) --safe-area-inset-* değişkenini verir. */
+    --sat: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+    --sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+    --sal: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+    --sar: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  }
+
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    padding-left: var(--sal);
+    padding-right: var(--sar);
+    /* Mobilde dokunma vurgusunu ve uzun basmada metin seçimi menüsünü yumuşat */
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  .pt-safe {
+    padding-top: var(--sat);
+  }
+  .pb-safe {
+    padding-bottom: var(--sab);
+  }
+  .mb-safe {
+    margin-bottom: var(--sab);
+  }
+  /* Alttan açılan pencerelerde normal boşluk + gezinme çubuğu boşluğu */
+  .pb-safe-plus {
+    padding-bottom: calc(0.75rem + var(--sab));
   }
 }
 

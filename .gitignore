@@ -48,3 +48,17 @@ Thumbs.db
 
 # Veritabanı yedekleri
 *.db.bak*
+
+# Mobil imzalama anahtarları ve gizli yapılandırma (ASLA commit etmeyin)
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+keystore.properties
+google-services.json
+GoogleService-Info.plist
+!.env.production.example
+
+# Mobil derleme çıktıları
+*.apk
+*.aab
