@@ -19,6 +19,7 @@ from app.schemas.receipt import (
     ReceiptSummaryResponse,
     ReceiptUpdate,
 )
+from app.services.billing import ensure_quota, record_usage
 from app.services.ai_errors import is_quota_error, quota_exceeded
 from app.services.receipt_parser import ReceiptParseError, receipt_parser_service
 
@@ -167,6 +168,8 @@ async def upload_receipt(
             detail=f"Dosya çok büyük. En fazla {settings.MAX_UPLOAD_MB} MB yükleyebilirsiniz.",
         )
 
+    ensure_quota(db, current_user, "receipt_scan")
+
     try:
         parsed_data = await receipt_parser_service.parse_receipt_image(
             image_bytes=image_bytes,
@@ -200,6 +203,7 @@ async def upload_receipt(
     db.add(receipt)
     db.commit()
     db.refresh(receipt)
+    record_usage(db, current_user, "receipt_scan")
     return receipt
 
 

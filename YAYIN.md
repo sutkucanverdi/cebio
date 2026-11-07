@@ -171,7 +171,42 @@ iOS derlemesi için **macOS ve Xcode** gerekir (Windows'ta yapılamaz). Proje `f
 
 ---
 
-## 6. Sürüm yayınlama özeti
+## 6. Premium abonelik (RevenueCat)
+
+Uygulama içinde dijital bir hizmet sattığın için Google Play ve App Store **kendi ödeme sistemlerini zorunlu
+tutar** (kartla doğrudan ödeme alamazsın). İki mağazayı tek yerden yönetmek için RevenueCat kullanılır;
+backend tarafı hazır, yalnızca hesap ve anahtarlar eksik.
+
+**Plan limitleri** (`backend/.env`, aylık): ücretsiz 15 fiş / 2 ekstre / 30 asistan sorusu,
+premium 200 / 20 / 300 (adil kullanım tavanı). Limitler yalnızca başarılı yapay zeka işlemlerinden düşer.
+
+1. Play Console ve App Store Connect'te abonelik ürünleri oluştur, ör. `cebio_premium_monthly`,
+   `cebio_premium_yearly`. Fiyatı mağazada belirlersin (ör. 49,99 ₺/ay, 399,99 ₺/yıl).
+2. [RevenueCat](https://www.revenuecat.com)'te proje aç, iki mağazayı bağla, `premium` adında bir
+   **entitlement** oluşturup ürünleri ona ekle.
+3. RevenueCat → Integrations → Webhooks:
+   - URL: `https://API-ADRESIN/api/v1/billing/revenuecat-webhook`
+   - Authorization header: uzun rastgele bir değer → aynı değeri sunucuda `REVENUECAT_WEBHOOK_SECRET` yap.
+4. Mobil tarafta `@revenuecat/purchases-capacitor` eklenip "Premium'a geç" butonu satın almaya bağlanacak
+   (RevenueCat API anahtarları alındıktan sonra yapılacak adım). Uygulama kullanıcıyı RevenueCat'e kendi
+   kullanıcı ID'mizle tanıtır: `Purchases.logIn({ appUserID: String(user.id) })`.
+
+**Maliyet notu:** `gemini-3.5-flash-lite` ile bir fiş taraması ~0,1 ₺, bir asistan sorusu ~0,2 ₺ civarındadır.
+Premium tavanını sonuna kadar kullanan nadir bir kullanıcının Gemini maliyeti aylık ~80 ₺'ye çıkabilir;
+mağaza komisyonu (%15) sonrası fiyatı buna göre belirle veya tavanları `.env`'den düşür.
+
+**Elle premium verme** (promosyon, test kullanıcıları, destek):
+
+```bash
+cd backend
+python -m app.cli grant-premium kisi@ornek.com --days 30
+python -m app.cli revoke-premium kisi@ornek.com
+python -m app.cli plan kisi@ornek.com
+```
+
+---
+
+## 7. Sürüm yayınlama özeti
 
 ```bash
 # 1) Testler

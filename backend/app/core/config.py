@@ -44,6 +44,17 @@ class Settings(BaseSettings):
     ASSISTANT_RATE_LIMIT: int = 30
     ASSISTANT_RATE_WINDOW_SECONDS: int = 600
 
+    # Plan limitleri (aylık, yapay zeka kullanan işlemler). Premium limitleri adil kullanım tavanıdır.
+    FREE_RECEIPT_SCANS_PER_MONTH: int = 15
+    FREE_STATEMENT_SCANS_PER_MONTH: int = 2
+    FREE_ASSISTANT_QUESTIONS_PER_MONTH: int = 30
+    PREMIUM_RECEIPT_SCANS_PER_MONTH: int = 200
+    PREMIUM_STATEMENT_SCANS_PER_MONTH: int = 20
+    PREMIUM_ASSISTANT_QUESTIONS_PER_MONTH: int = 300
+
+    # RevenueCat (Google Play / App Store abonelikleri) webhook doğrulama anahtarı
+    REVENUECAT_WEBHOOK_SECRET: str = ""
+
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / ".env", ".env"),
         env_file_encoding="utf-8",
