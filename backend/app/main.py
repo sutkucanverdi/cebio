@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.routes import router as receipts_router
+from app.api.subscriptions import router as subscriptions_router
 from app.core.config import settings
 from app.core.migrations import run_migrations
 
@@ -39,6 +40,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(receipts_router)
+app.include_router(subscriptions_router)
 
 
 @app.get("/health", tags=["System"])

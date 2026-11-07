@@ -8,6 +8,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.receipt import Receipt
+    from app.models.subscription import Subscription
 
 
 class User(Base):
@@ -25,6 +26,12 @@ class User(Base):
 
     receipts: Mapped[List["Receipt"]] = relationship(
         "Receipt",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    subscriptions: Mapped[List["Subscription"]] = relationship(
+        "Subscription",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
