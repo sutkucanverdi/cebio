@@ -27,6 +27,7 @@ from app.schemas.subscription import (
     SubscriptionSummary,
     SubscriptionUpdate,
 )
+from app.services.ai_errors import is_quota_error, quota_exceeded
 from app.services.receipt_parser import ReceiptParseError
 from app.services.statement_parser import statement_parser_service
 from app.services.subscription_catalog import CATALOG, match_catalog, normalize_text
@@ -249,6 +250,9 @@ async def detect_from_statement(
     except ReceiptParseError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except Exception as exc:
+        if is_quota_error(exc):
+            logger.warning("Gemini kotası doldu (user_id=%s)", current_user.id)
+            raise quota_exceeded() from exc
         logger.exception("Ekstre ayrıştırma hatası (user_id=%s)", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

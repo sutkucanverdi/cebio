@@ -19,6 +19,7 @@ from app.schemas.receipt import (
     ReceiptSummaryResponse,
     ReceiptUpdate,
 )
+from app.services.ai_errors import is_quota_error, quota_exceeded
 from app.services.receipt_parser import ReceiptParseError, receipt_parser_service
 
 logger = logging.getLogger("cebio")
@@ -174,6 +175,9 @@ async def upload_receipt(
     except ReceiptParseError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except Exception as exc:
+        if is_quota_error(exc):
+            logger.warning("Gemini kotası doldu (user_id=%s)", current_user.id)
+            raise quota_exceeded() from exc
         # İç hata detayları kullanıcıya sızdırılmaz, sadece loglanır.
         logger.exception("Fiş ayrıştırma servisi hatası (user_id=%s)", current_user.id)
         raise HTTPException(

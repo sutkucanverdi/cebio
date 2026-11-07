@@ -36,7 +36,7 @@ platform kullanılabilir: **Render, Railway, Fly.io, DigitalOcean App Platform**
 | `DATABASE_URL` | `postgresql+psycopg://KULLANICI:ŞİFRE@HOST:5432/cebio` |
 | `JWT_SECRET` | `python -c "import secrets; print(secrets.token_urlsafe(48))"` çıktısı |
 | `GEMINI_API_KEY` | Google AI Studio'dan alınan anahtar |
-| `GEMINI_MODEL` | `gemini-2.5-flash` (veya daha yenisi) |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` (ucuz). Google eski modelleri yeni hesaplara kapatabiliyor; güncel listeyi AI Studio'dan kontrol et |
 | `CORS_ORIGINS` | `https://localhost,capacitor://localhost,https://WEB-ALAN-ADIN` |
 | `AUTO_MIGRATE` | `True` (tek sunucu). Birden fazla örnekte `False` yapıp deploy adımında `alembic upgrade head` çalıştır |
 | `ASSISTANT_RATE_LIMIT` | Kullanıcı başına 10 dk'da en fazla asistan sorusu (varsayılan 30) |

@@ -13,6 +13,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+from app.services.ai_errors import is_quota_error, quota_exceeded
 from app.services.assistant import ChatTurn, assistant_service
 from app.services.assistant_tools import ToolContext
 from app.services.receipt_parser import ReceiptParseError
@@ -101,6 +102,9 @@ async def chat(
     except ReceiptParseError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except Exception as exc:
+        if is_quota_error(exc):
+            logger.warning("Gemini kotası doldu (user_id=%s)", current_user.id)
+            raise quota_exceeded() from exc
         logger.exception("Asistan hatası (user_id=%s)", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

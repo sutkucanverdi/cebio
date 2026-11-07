@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
 
     DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'cebio.db'}"
     CORS_ORIGINS: str = "*"
