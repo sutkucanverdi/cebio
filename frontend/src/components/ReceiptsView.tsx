@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DashboardFilters, EMPTY_FILTERS, useDashboard } from '../hooks/useDashboard';
 import { buildExportRows, exportCsv, exportExcel } from '../lib/export';
 import { formatCurrency, formatQuantity, getReceiptTotalQuantity } from '../lib/format';
 import { deleteReceipt, getApiErrorMessage, Receipt, uploadReceipt } from '../services/api';
+import { BudgetsCard } from './BudgetsCard';
 import { CategoryChart } from './CategoryChart';
 import { ReceiptTable } from './ReceiptTable';
 import { StatCards } from './StatCards';
 import { ThermalReceiptModal } from './ThermalReceiptModal';
+import { TrendChart } from './TrendChart';
 import { Notice } from './ui';
 import { UploadCard, validateReceiptFile } from './UploadCard';
 
@@ -19,7 +21,13 @@ interface ReceiptsViewProps {
 export function ReceiptsView({ darkMode, refreshSignal }: ReceiptsViewProps) {
 
   const [filters, setFilters] = useState<DashboardFilters>(EMPTY_FILTERS);
-  const { receipts, summary, isLoading, error: loadError, refresh } = useDashboard(filters);
+  const { receipts, summary, isLoading, error: loadError, refresh: refreshList } = useDashboard(filters);
+  // Trend ve bütçe kartları fiş verisi değiştiğinde yeniden yüklenir
+  const [dataVersion, setDataVersion] = useState(0);
+  const refresh = useCallback(async () => {
+    await refreshList();
+    setDataVersion((v) => v + 1);
+  }, [refreshList]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -130,6 +138,11 @@ export function ReceiptsView({ darkMode, refreshSignal }: ReceiptsViewProps) {
         {errorMsg && <Notice kind="error" message={errorMsg} onClose={() => setErrorMsg(null)} />}
 
         <StatCards summary={summary} isFiltered={hasSummaryFilters} />
+
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <TrendChart darkMode={darkMode} reloadKey={dataVersion} />
+          <BudgetsCard reloadKey={dataVersion} />
+        </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <UploadCard isUploading={isUploading} onFile={(f) => void handleFileUpload(f)} />

@@ -247,7 +247,7 @@ async def detect_from_statement(
     try:
         parsed = await statement_parser_service.parse_statement(data, mime)
     except ReceiptParseError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Ekstre ayrıştırma hatası (user_id=%s)", current_user.id)
         raise HTTPException(

@@ -17,7 +17,7 @@ import {
   ReceiptItemUpdatePayload,
   updateReceipt,
 } from '../services/api';
-import { formatCurrency, formatQuantity } from '../lib/format';
+import { formatCurrency, formatQuantity, RECEIPT_CATEGORIES as DEFAULT_CATEGORIES } from '../lib/format';
 
 interface ThermalReceiptModalProps {
   isOpen: boolean;
@@ -28,19 +28,6 @@ interface ThermalReceiptModalProps {
   onSaved: (updated: Receipt) => void;
 }
 
-const DEFAULT_CATEGORIES = [
-  'Gıda',
-  'Atıştırmalık',
-  'İçecek',
-  'Temizlik',
-  'Kişisel Bakım',
-  'Ev & Yaşam',
-  'Elektronik',
-  'Giyim',
-  'Restoran & Kafe',
-  'Ulaşım',
-  'Diğer',
-];
 
 export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
   isOpen,

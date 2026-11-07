@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.budget import Budget
     from app.models.receipt import Receipt
     from app.models.subscription import Subscription
 
@@ -32,6 +33,12 @@ class User(Base):
     )
     subscriptions: Mapped[List["Subscription"]] = relationship(
         "Subscription",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    budgets: Mapped[List["Budget"]] = relationship(
+        "Budget",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,

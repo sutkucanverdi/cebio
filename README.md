@@ -1,13 +1,18 @@
 # Cebio — Otonom Cüzdan Denetçisi
 
 **Cebio**, fiş fotoğraflarını yapay zeka (Google Gemini) ile analiz edip kalem kalem harcamaları çıkaran,
-kategori bazlı harcama analizi sunan ve online abonelikleri takip eden bir cüzdan denetçisidir.
+kategori bazlı harcama analizi sunan, online abonelikleri takip eden ve harcamalarınızla ilgili soruları
+cevaplayan bir cüzdan denetçisidir.
 
 ## Özellikler
 
 - **Fişler:** fotoğraftan otomatik ayrıştırma, düzenleme, kategori grafiği, CSV/Excel dışa aktarma
 - **Abonelikler:** aylık/yıllık sabit gider, yaklaşan yenilemeler, deneme süresi uyarısı, zam geçmişi,
   hazır servis kataloğu (Netflix, Spotify, YouTube Premium...)
+- **Analiz & bütçe:** son 6 ayın harcama trendi, genel veya kategori bazlı aylık bütçeler
+  (%80'de uyarı, aşımda kırmızı, ay sonu tahmini)
+- **AI asistan:** "Geçen ay ne kadar harcadım?", "Kahveye ne kadar veriyorum?" gibi soruları Gemini function
+  calling ile kullanıcının gerçek verisinden cevaplar (yalnızca okuma araçları, kullanıcıya göre sınırlı, istek limiti)
 - **Ekstreden tespit:** banka/kart ekstresi (PDF, CSV, ekran görüntüsü) yüklenir; Gemini işlemleri okur,
   tekrarlayan ödemeler deterministik bir algoritmayla bulunur, kullanıcı onayladıklarını ekler
 
@@ -22,15 +27,15 @@ cebio/
 │   │   ├── core/                # config, database, security (bcrypt/JWT), migrations
 │   │   ├── models/              # User, Receipt, ReceiptItem (Decimal tutarlar, Date tipi)
 │   │   ├── schemas/             # Pydantic v2 şemaları
-│   │   ├── services/            # Gemini fiş/ekstre ayrıştırıcı, abonelik kataloğu, tespit algoritması
+│   │   ├── services/            # Gemini ayrıştırıcılar, abonelik tespiti, analytics, AI asistan + araçları
 │   │   └── main.py
-│   ├── tests/                   # pytest (41 test)
+│   ├── tests/                   # pytest (51 test)
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/                    # React 18 + Vite + Tailwind + Recharts
 │   └── src/
 │       ├── auth/                # AuthContext (oturum yönetimi)
-│       ├── components/          # Dashboard (sekmeler), ReceiptsView, subscriptions/ (SubscriptionsView, form, ekstre)
+│       ├── components/          # Dashboard (sekmeler), ReceiptsView, TrendChart, BudgetsCard, AssistantView, subscriptions/
 │       ├── hooks/               # useDashboard, useSubscriptions
 │       ├── lib/                 # format, export (CSV/Excel), storage
 │       └── services/api.ts      # Axios istemcisi + token interceptor
@@ -105,5 +110,9 @@ Swagger UI: `http://localhost:8000/docs` (sağ üstteki **Authorize** ile giriş
 | `GET /api/v1/subscriptions/summary` | Aylık/yıllık toplam (para birimine göre), yaklaşan yenilemeler, biten denemeler, zamlar |
 | `GET /api/v1/subscriptions/catalog` | Hazır servis listesi |
 | `POST /api/v1/subscriptions/detect` | Ekstreden abonelik adayları (hiçbir şey kaydetmez) |
+| `GET /api/v1/analytics/trend` | Son N ayın harcama toplamları (`months`, en fazla 24) |
+| `GET/POST /api/v1/budgets` | Bütçeler ve aylık durumları (`month=YYYY-MM`) / bütçe ekle |
+| `PUT/DELETE /api/v1/budgets/{id}` | Bütçe limitini güncelle / sil |
+| `POST /api/v1/assistant/chat` | AI asistana soru sor (son 20 mesaj; kullanıcı başına istek limiti) |
 
-Fiş ve abonelik uç noktalarının hepsi `Authorization: Bearer <token>` başlığı ister ve yalnızca kullanıcının kendi kayıtlarını döner.
+Fiş, abonelik, bütçe ve asistan uç noktalarının hepsi `Authorization: Bearer <token>` başlığı ister ve yalnızca kullanıcının kendi kayıtlarını döner.

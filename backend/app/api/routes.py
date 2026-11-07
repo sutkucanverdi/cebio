@@ -172,7 +172,7 @@ async def upload_receipt(
             mime_type=resolved_mime_type,
         )
     except ReceiptParseError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except Exception as exc:
         # İç hata detayları kullanıcıya sızdırılmaz, sadece loglanır.
         logger.exception("Fiş ayrıştırma servisi hatası (user_id=%s)", current_user.id)

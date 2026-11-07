@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Receipt as ReceiptIcon, Repeat } from 'lucide-react';
+import { Receipt as ReceiptIcon, Repeat, Sparkles } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { storageGet, storageSet } from '../lib/storage';
 import { getApiErrorMessage } from '../services/api';
+import { AssistantMessage, AssistantView } from './AssistantView';
 import { Header } from './Header';
 import { ReceiptsView } from './ReceiptsView';
 import { SubscriptionsView } from './subscriptions/SubscriptionsView';
@@ -11,11 +12,13 @@ import { Notice } from './ui';
 const THEME_KEY = 'cebio.theme';
 const TAB_KEY = 'cebio.tab';
 
-type Tab = 'receipts' | 'subscriptions';
+type Tab = 'receipts' | 'subscriptions' | 'assistant';
+const VALID_TABS: Tab[] = ['receipts', 'subscriptions', 'assistant'];
 
 const TABS: { id: Tab; label: string; Icon: typeof ReceiptIcon }[] = [
   { id: 'receipts', label: 'Fişler', Icon: ReceiptIcon },
   { id: 'subscriptions', label: 'Abonelikler', Icon: Repeat },
+  { id: 'assistant', label: 'Asistan', Icon: Sparkles },
 ];
 
 function useDarkMode(): [boolean, () => void] {
@@ -36,9 +39,12 @@ function useDarkMode(): [boolean, () => void] {
 export function Dashboard() {
   const { user, logout, deleteAccount } = useAuth();
   const [darkMode, toggleDarkMode] = useDarkMode();
-  const [tab, setTab] = useState<Tab>(() =>
-    storageGet(TAB_KEY) === 'subscriptions' ? 'subscriptions' : 'receipts'
-  );
+  const [tab, setTab] = useState<Tab>(() => {
+    const saved = storageGet(TAB_KEY) as Tab | null;
+    return saved && VALID_TABS.includes(saved) ? saved : 'receipts';
+  });
+  // Sohbet, sekmeler arasında geçişte kaybolmasın diye burada tutulur (yalnızca bellekte).
+  const [chat, setChat] = useState<AssistantMessage[]>([]);
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [accountError, setAccountError] = useState<string | null>(null);
 
@@ -73,7 +79,7 @@ export function Dashboard() {
         <nav
           role="tablist"
           aria-label="Bölümler"
-          className="inline-grid grid-cols-2 gap-1 p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-sm w-full sm:w-auto"
+          className="inline-grid grid-cols-3 gap-1 p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-sm w-full sm:w-auto"
         >
           {TABS.map(({ id, label, Icon }) => {
             const active = tab === id;
@@ -84,13 +90,13 @@ export function Dashboard() {
                 type="button"
                 aria-selected={active}
                 onClick={() => setTab(id)}
-                className={`inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${
+                className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 rounded-lg text-sm font-semibold transition ${
                   active
                     ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-slate-950 shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4 hidden sm:block" />
                 {label}
               </button>
             );
@@ -99,11 +105,9 @@ export function Dashboard() {
 
         {accountError && <Notice kind="error" message={accountError} onClose={() => setAccountError(null)} />}
 
-        {tab === 'receipts' ? (
-          <ReceiptsView darkMode={darkMode} refreshSignal={refreshSignal} />
-        ) : (
-          <SubscriptionsView refreshSignal={refreshSignal} />
-        )}
+        {tab === 'receipts' && <ReceiptsView darkMode={darkMode} refreshSignal={refreshSignal} />}
+        {tab === 'subscriptions' && <SubscriptionsView refreshSignal={refreshSignal} />}
+        {tab === 'assistant' && <AssistantView messages={chat} setMessages={setChat} />}
       </main>
     </div>
   );

@@ -1,5 +1,20 @@
 import type { Receipt, ReceiptItem } from '../services/api';
 
+/** Gemini'nin fiş ürünlerine atadığı kategoriler (backend SYSTEM_PROMPT ile aynı liste). */
+export const RECEIPT_CATEGORIES = [
+  'Gıda',
+  'Atıştırmalık',
+  'İçecek',
+  'Temizlik',
+  'Kişisel Bakım',
+  'Ev & Yaşam',
+  'Elektronik',
+  'Giyim',
+  'Restoran & Kafe',
+  'Ulaşım',
+  'Diğer',
+];
+
 const currencyFormatter = new Intl.NumberFormat('tr-TR', {
   style: 'currency',
   currency: 'TRY',

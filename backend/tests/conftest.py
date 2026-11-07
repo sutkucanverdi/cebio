@@ -19,6 +19,8 @@ from app.main import app  # noqa: E402  (app.main zaten app.models'i dolaylı ol
 
 # Testler gerçek veritabanına migration uygulamasın.
 settings.AUTO_MIGRATE = False
+# Şifre hash'leme testlerde hızlı olsun (production varsayılanı 12)
+settings.BCRYPT_ROUNDS = 4
 
 # Bellek içi (in-memory) izole SQLite test veritabanı
 TEST_ENGINE = create_engine(
