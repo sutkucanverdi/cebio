@@ -71,6 +71,23 @@ export function buildReminders(subs: Subscription[], now: Date = new Date()): Lo
     .slice(0, MAX_NOTIFICATIONS);
 }
 
+/** Her ayın 1'i saat 10:00'da "geçen ayın raporu hazır" bildirimi (bir sonraki ay başı için). */
+export const MONTHLY_REPORT_NOTIFICATION_ID = 900_001;
+const TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+
+export function buildMonthlyReportReminder(now: Date = new Date()): LocalNotificationSchema {
+  const at = new Date(now.getFullYear(), now.getMonth() + 1, 1, REMIND_HOUR, 0, 0, 0);
+  const reportMonth = new Date(at.getFullYear(), at.getMonth() - 1, 1);
+  const label = `${TR_MONTHS[reportMonth.getMonth()]} ${reportMonth.getFullYear()}`;
+  return {
+    id: MONTHLY_REPORT_NOTIFICATION_ID,
+    title: `${label} raporun hazır`,
+    body: 'Geçen ay ne kadar harcadın, en çok nereye gitti, hangi abonelikler zamlandı? Hemen bak.',
+    schedule: { at, allowWhileIdle: true },
+    extra: { kind: 'monthly-report' },
+  };
+}
+
 async function cancelAllPending(): Promise<void> {
   const pending = await LocalNotifications.getPending();
   if (pending.notifications.length) {
@@ -89,7 +106,7 @@ export async function syncReminders(subs: Subscription[]): Promise<ReminderState
     const perm = await LocalNotifications.checkPermissions();
     if (perm.display !== 'granted') return 'denied';
     await cancelAllPending();
-    const notifications = buildReminders(subs);
+    const notifications = [...buildReminders(subs), buildMonthlyReportReminder()];
     if (notifications.length) await LocalNotifications.schedule({ notifications });
     return 'on';
   } catch {

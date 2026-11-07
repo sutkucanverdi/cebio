@@ -19,6 +19,7 @@ const SUGGESTIONS = [
   'En pahalı aboneliğim hangisi?',
   'Bütçemi aşıyor muyum?',
   'Ekstreme göre en çok nereye harcadım?',
+  'Geçen ayın raporunu özetle',
 ];
 
 const TOOL_LABELS: Record<string, string> = {
@@ -29,6 +30,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_subscriptions: 'Abonelikler',
   get_budget_status: 'Bütçeler',
   search_bank_transactions: 'Banka işlemleri',
+  get_monthly_report: 'Aylık rapor',
 };
 
 /** **kalın** işaretlerini <strong>'a çevirir; HTML enjekte etmeden güvenli render. */

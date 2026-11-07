@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Subscription } from '../services/api';
-import { buildReminders } from './reminders';
+import { buildMonthlyReportReminder, buildReminders } from './reminders';
 
 function sub(overrides: Partial<Subscription>): Subscription {
   return {
@@ -72,5 +72,19 @@ describe('buildReminders', () => {
   it('yabancı para birimini doğru biçimler', () => {
     const [n] = buildReminders([sub({ name: 'ChatGPT Plus', amount: 20, currency: 'USD' })], NOW);
     expect(n.body).toMatch(/\$20,00/);
+  });
+});
+
+describe('buildMonthlyReportReminder', () => {
+  it('bir sonraki ayın 1i saat 10:00 için geçen ayın rapor bildirimini kurar', () => {
+    const n = buildMonthlyReportReminder(new Date(2026, 10, 7, 15, 0, 0));
+    expect(n.schedule?.at).toEqual(new Date(2026, 11, 1, 10, 0, 0));
+    expect(n.title).toBe('Kasım 2026 raporun hazır');
+  });
+
+  it('yıl dönümünde doğru yılı kullanır', () => {
+    const n = buildMonthlyReportReminder(new Date(2026, 11, 20, 9, 0, 0));
+    expect(n.schedule?.at).toEqual(new Date(2027, 0, 1, 10, 0, 0));
+    expect(n.title).toBe('Aralık 2026 raporun hazır');
   });
 });

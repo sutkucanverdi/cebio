@@ -156,6 +156,17 @@ def tool_subscriptions(ctx: ToolContext, args: Dict[str, Any]) -> dict:
     return {"subscriptions": items, "count": len(items)}
 
 
+def tool_monthly_report(ctx: ToolContext, args: Dict[str, Any]) -> dict:
+    from app.services.reports import default_report_month, monthly_report
+
+    month = _str(args, "month")
+    rng = parse_month(month, ctx.today) if month else default_report_month(ctx.today)
+    report = monthly_report(ctx.db, ctx.user_id, rng, ctx.today)
+    # Model için gereksiz ayrıntıyı kısalt
+    report["top_expenses"] = report["top_expenses"][:3]
+    return report
+
+
 def tool_budget_status(ctx: ToolContext, args: Dict[str, Any]) -> dict:
     rng = parse_month(_str(args, "month"), ctx.today)
     budgets = budget_status(ctx.db, ctx.user_id, rng, ctx.today)
@@ -248,6 +259,16 @@ TOOLS: Dict[str, tuple[str, dict, Callable[[ToolContext, Dict[str, Any]], dict]]
             },
         },
         tool_subscriptions,
+    ),
+    "get_monthly_report": (
+        "Bir ayın hazır harcama raporunu getirir: toplam ve geçen aya göre değişim, kategori değişimleri, "
+        "en çok harcanan yerler, en büyük harcamalar, abonelik zamları, bütçe durumu ve öne çıkan notlar. "
+        "'Geçen ayı özetle', 'aylık raporum' gibi sorularda kullan.",
+        {
+            "type": "object",
+            "properties": {"month": {"type": "string", "description": "YYYY-MM; boşsa tamamlanmış son ay"}},
+        },
+        tool_monthly_report,
     ),
     "get_budget_status": (
         "Kullanıcının aylık bütçelerini ve o ay ne kadar harcandığını, kalan tutarı, ay sonu tahminini getirir.",

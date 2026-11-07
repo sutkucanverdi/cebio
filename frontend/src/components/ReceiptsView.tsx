@@ -16,9 +16,10 @@ interface ReceiptsViewProps {
   darkMode: boolean;
   /** Üst bardaki "Yenile" butonuna her basıldığında artar. */
   refreshSignal: number;
+  onOpenReport: () => void;
 }
 
-export function ReceiptsView({ darkMode, refreshSignal }: ReceiptsViewProps) {
+export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: ReceiptsViewProps) {
 
   const [filters, setFilters] = useState<DashboardFilters>(EMPTY_FILTERS);
   const { receipts, summary, isLoading, error: loadError, refresh: refreshList } = useDashboard(filters);
@@ -140,7 +141,7 @@ export function ReceiptsView({ darkMode, refreshSignal }: ReceiptsViewProps) {
         <StatCards summary={summary} isFiltered={hasSummaryFilters} />
 
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <TrendChart darkMode={darkMode} reloadKey={dataVersion} />
+          <TrendChart darkMode={darkMode} reloadKey={dataVersion} onOpenReport={onOpenReport} />
           <BudgetsCard reloadKey={dataVersion} />
         </section>
 

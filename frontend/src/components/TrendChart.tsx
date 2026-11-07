@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingDown, TrendingUp } from 'lucide-react';
+import { BarChart3, FileBarChart, TrendingDown, TrendingUp } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatCurrency } from '../lib/format';
 import { getTrend, TrendPoint } from '../services/api';
@@ -18,9 +18,10 @@ interface TrendChartProps {
   darkMode: boolean;
   /** Veriler değiştiğinde (fiş eklendi/silindi) artar ve grafik yeniden yüklenir. */
   reloadKey: number;
+  onOpenReport: () => void;
 }
 
-export function TrendChart({ darkMode, reloadKey }: TrendChartProps) {
+export function TrendChart({ darkMode, reloadKey, onOpenReport }: TrendChartProps) {
   const [points, setPoints] = useState<TrendPoint[]>([]);
   const [failed, setFailed] = useState(false);
 
@@ -59,6 +60,14 @@ export function TrendChart({ darkMode, reloadKey }: TrendChartProps) {
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Son 6 ay • fişler + banka/kart</p>
         </div>
+        <div className="flex flex-col items-end gap-1.5">
+        <button
+          type="button"
+          onClick={onOpenReport}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition"
+        >
+          <FileBarChart className="w-3.5 h-3.5" /> Aylık rapor
+        </button>
         {change !== null && (
           <span
             className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${
@@ -73,6 +82,7 @@ export function TrendChart({ darkMode, reloadKey }: TrendChartProps) {
             {change.toFixed(0)}% geçen aya göre
           </span>
         )}
+        </div>
       </div>
 
       {failed ? (
