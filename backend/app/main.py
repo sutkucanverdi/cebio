@@ -5,6 +5,8 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.analytics import router as analytics_router
+from app.api.assistant import router as assistant_router
 from app.api.auth import router as auth_router
 from app.api.routes import router as receipts_router
 from app.api.subscriptions import router as subscriptions_router
@@ -41,6 +43,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(receipts_router)
 app.include_router(subscriptions_router)
+app.include_router(analytics_router)
+app.include_router(assistant_router)
 
 
 @app.get("/health", tags=["System"])

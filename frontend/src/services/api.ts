@@ -325,3 +325,68 @@ export async function detectSubscriptions(file: File): Promise<DetectionResult> 
   formData.append('file', file);
   return (await apiClient.post<DetectionResult>('/api/v1/subscriptions/detect', formData)).data;
 }
+
+// --- Analiz, bütçeler ve asistan ---
+
+export interface TrendPoint {
+  month: string;
+  label: string;
+  total: number;
+  receipt_count: number;
+}
+
+export type BudgetState = 'ok' | 'warning' | 'exceeded';
+
+export interface BudgetStatus {
+  id: number;
+  category: string | null;
+  monthly_limit: number;
+  spent: number;
+  remaining: number;
+  percent: number;
+  projected: number;
+  state: BudgetState;
+  month: string;
+}
+
+export interface BudgetStatusResponse {
+  month: string;
+  label: string;
+  budgets: BudgetStatus[];
+}
+
+export async function getTrend(months = 6): Promise<TrendPoint[]> {
+  return (await apiClient.get<TrendPoint[]>('/api/v1/analytics/trend', { params: { months } })).data;
+}
+
+export async function getBudgets(): Promise<BudgetStatusResponse> {
+  return (await apiClient.get<BudgetStatusResponse>('/api/v1/budgets')).data;
+}
+
+export async function createBudget(category: string | null, monthlyLimit: number): Promise<BudgetStatusResponse> {
+  return (
+    await apiClient.post<BudgetStatusResponse>('/api/v1/budgets', { category, monthly_limit: monthlyLimit })
+  ).data;
+}
+
+export async function updateBudget(id: number, monthlyLimit: number): Promise<BudgetStatusResponse> {
+  return (await apiClient.put<BudgetStatusResponse>(`/api/v1/budgets/${id}`, { monthly_limit: monthlyLimit })).data;
+}
+
+export async function deleteBudget(id: number): Promise<void> {
+  await apiClient.delete(`/api/v1/budgets/${id}`);
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  tools_used: string[];
+}
+
+export async function sendChat(messages: ChatMessage[]): Promise<ChatResponse> {
+  return (await apiClient.post<ChatResponse>('/api/v1/assistant/chat', { messages })).data;
+}

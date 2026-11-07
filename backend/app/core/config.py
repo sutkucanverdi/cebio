@@ -31,9 +31,15 @@ class Settings(BaseSettings):
     JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 gün
+    # bcrypt maliyet faktörü (production için 12; testlerde hız için düşürülür)
+    BCRYPT_ROUNDS: int = 12
 
     # Yükleme limitleri
     MAX_UPLOAD_MB: int = 10
+
+    # AI asistan: kullanıcı başına pencere içinde en fazla kaç soru
+    ASSISTANT_RATE_LIMIT: int = 30
+    ASSISTANT_RATE_WINDOW_SECONDS: int = 600
 
     model_config = SettingsConfigDict(
         env_file=(BASE_DIR / ".env", ".env"),
