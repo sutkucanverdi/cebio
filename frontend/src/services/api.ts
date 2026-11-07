@@ -208,3 +208,120 @@ export async function updateReceipt(id: number, payload: ReceiptUpdatePayload): 
 export async function deleteReceipt(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/receipts/${id}`);
 }
+
+// --- Abonelikler ---
+
+export type BillingCycle = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type SubscriptionStatus = 'active' | 'trial' | 'paused' | 'cancelled';
+
+export interface PriceChange {
+  old_amount: number;
+  new_amount: number;
+  changed_at: string;
+}
+
+export interface Subscription {
+  id: number;
+  name: string;
+  amount: number;
+  currency: string;
+  billing_cycle: BillingCycle;
+  next_billing_date: string;
+  category: string;
+  status: SubscriptionStatus;
+  trial_ends_at: string | null;
+  cancel_url: string | null;
+  notes: string | null;
+  created_at: string;
+  monthly_equivalent: number;
+  days_until_next: number;
+  last_price_change: PriceChange | null;
+}
+
+export interface SubscriptionPayload {
+  name: string;
+  amount: number;
+  currency: string;
+  billing_cycle: BillingCycle;
+  next_billing_date: string;
+  category: string;
+  status: SubscriptionStatus;
+  trial_ends_at: string | null;
+  cancel_url: string | null;
+  notes: string | null;
+}
+
+export interface CurrencyTotal {
+  currency: string;
+  amount: number;
+}
+
+export interface SubscriptionSummary {
+  active_count: number;
+  monthly_totals: CurrencyTotal[];
+  yearly_totals: CurrencyTotal[];
+  by_category: { category: string; monthly_amount: number; count: number }[];
+  upcoming: Subscription[];
+  trials_ending: Subscription[];
+  recent_price_increases: Subscription[];
+}
+
+export interface CatalogEntry {
+  key: string;
+  name: string;
+  category: string;
+  default_cycle: BillingCycle;
+  cancel_url: string | null;
+}
+
+export interface SubscriptionCandidate {
+  name: string;
+  amount: number;
+  currency: string;
+  billing_cycle: BillingCycle;
+  category: string;
+  last_charge_date: string;
+  next_billing_date: string;
+  occurrences: number;
+  confidence: 'high' | 'medium' | 'low';
+  previous_amount: number | null;
+  cancel_url: string | null;
+  already_tracked: boolean;
+  matched_descriptions: string[];
+}
+
+export interface DetectionResult {
+  transactions_found: number;
+  candidates: SubscriptionCandidate[];
+}
+
+export async function getSubscriptions(): Promise<Subscription[]> {
+  return (await apiClient.get<Subscription[]>('/api/v1/subscriptions')).data;
+}
+
+export async function getSubscriptionSummary(): Promise<SubscriptionSummary> {
+  return (await apiClient.get<SubscriptionSummary>('/api/v1/subscriptions/summary')).data;
+}
+
+export async function getSubscriptionCatalog(): Promise<CatalogEntry[]> {
+  return (await apiClient.get<CatalogEntry[]>('/api/v1/subscriptions/catalog')).data;
+}
+
+export async function createSubscription(payload: SubscriptionPayload): Promise<Subscription> {
+  return (await apiClient.post<Subscription>('/api/v1/subscriptions', payload)).data;
+}
+
+export async function updateSubscription(id: number, payload: SubscriptionPayload): Promise<Subscription> {
+  return (await apiClient.put<Subscription>(`/api/v1/subscriptions/${id}`, payload)).data;
+}
+
+export async function deleteSubscription(id: number): Promise<void> {
+  await apiClient.delete(`/api/v1/subscriptions/${id}`);
+}
+
+/** Ekstreyi (PDF/CSV/görsel) analiz edip abonelik adaylarını döner; hiçbir şey kaydetmez. */
+export async function detectSubscriptions(file: File): Promise<DetectionResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return (await apiClient.post<DetectionResult>('/api/v1/subscriptions/detect', formData)).data;
+}

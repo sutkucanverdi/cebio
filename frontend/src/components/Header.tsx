@@ -5,7 +5,7 @@ import type { User } from '../services/api';
 interface HeaderProps {
   user: User | null;
   darkMode: boolean;
-  isLoading: boolean;
+  isLoading?: boolean;
   onRefresh: () => void;
   onToggleDarkMode: () => void;
   onLogout: () => void;
@@ -18,7 +18,7 @@ const ICON_BUTTON =
 export function Header({
   user,
   darkMode,
-  isLoading,
+  isLoading = false,
   onRefresh,
   onToggleDarkMode,
   onLogout,
