@@ -54,6 +54,7 @@ export interface ReceiptSummary {
 
 export interface GetReceiptsParams {
   merchant?: string;
+  category?: string;
   start_date?: string;
   end_date?: string;
 }
@@ -81,6 +82,7 @@ export async function uploadReceipt(file: File): Promise<Receipt> {
 export async function getReceipts(params?: GetReceiptsParams): Promise<Receipt[]> {
   const cleanParams: Record<string, string> = {};
   if (params?.merchant?.trim()) cleanParams.merchant = params.merchant.trim();
+  if (params?.category?.trim()) cleanParams.category = params.category.trim();
   if (params?.start_date?.trim()) cleanParams.start_date = params.start_date.trim();
   if (params?.end_date?.trim()) cleanParams.end_date = params.end_date.trim();
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Calendar,
@@ -8,13 +8,16 @@ import {
   ChevronUp,
   Download,
   Edit3,
+  FileSpreadsheet,
   FileText,
+  Filter,
   FolderOpen,
   Loader2,
   Moon,
   PieChart as PieChartIcon,
   Receipt as ReceiptIcon,
   RefreshCw,
+  RotateCcw,
   Search,
   Sparkles,
   Sun,
@@ -33,6 +36,7 @@ import {
   Tooltip,
   TooltipProps,
 } from 'recharts';
+import * as XLSX from 'xlsx';
 import { ThermalReceiptModal } from './components/ThermalReceiptModal';
 import {
   CategoryBreakdown,
@@ -96,7 +100,7 @@ function getUnitPrice(item: ReceiptItem): number {
 
 function escapeCsvCell(value: string | number): string {
   const str = String(value ?? '');
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+  if (str.includes(',') || str.includes(';') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
@@ -118,7 +122,7 @@ function CustomPieTooltip({ active, payload, totalAmount }: CustomPieTooltipProp
   const color = item.color || '#10b981';
 
   return (
-    <div className="bg-white/95 text-slate-800 border border-slate-200 shadow-lg backdrop-blur-sm rounded-xl p-2.5 dark:bg-slate-900/95 dark:text-white dark:border-slate-700 min-w-[165px]">
+    <div className="bg-white/95 text-slate-800 border border-slate-200 shadow-lg backdrop-blur-sm rounded-xl p-2.5 dark:bg-slate-900/95 dark:text-white dark:border-slate-700 min-w-[175px]">
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-xs font-semibold">
           <span
@@ -139,6 +143,9 @@ function CustomPieTooltip({ active, payload, totalAmount }: CustomPieTooltipProp
           {formatCurrency(amount)}
         </span>
       </div>
+      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+        Filtrelemek için tıklayın
+      </p>
     </div>
   );
 }
@@ -169,6 +176,7 @@ export default function App() {
 
   // Filtre state'leri
   const [merchantFilter, setMerchantFilter] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
@@ -190,6 +198,7 @@ export default function App() {
       const [receiptsData, summaryData] = await Promise.all([
         getReceipts({
           merchant: merchantFilter,
+          category: categoryFilter,
           start_date: startDate,
           end_date: endDate,
         }),
@@ -205,11 +214,35 @@ export default function App() {
     } finally {
       setIsLoadingData(false);
     }
-  }, [merchantFilter, startDate, endDate]);
+  }, [merchantFilter, categoryFilter, startDate, endDate]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // İstemci tarafında da anlık kategori filtresi güvencesi
+  const filteredReceipts = useMemo(() => {
+    if (!categoryFilter) return receipts;
+    const target = categoryFilter.toLowerCase();
+    return receipts.filter((r) =>
+      r.items.some((item) => item.category.toLowerCase() === target)
+    );
+  }, [receipts, categoryFilter]);
+
+  const hasActiveFilters = Boolean(
+    merchantFilter.trim() || categoryFilter.trim() || startDate || endDate
+  );
+
+  const clearAllFilters = () => {
+    setMerchantFilter('');
+    setCategoryFilter('');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  const handleToggleCategoryFilter = (category: string) => {
+    setCategoryFilter((prev) => (prev === category ? '' : category));
+  };
 
   const handleFileUpload = async (file: File) => {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -286,54 +319,86 @@ export default function App() {
     setIsThermalOpen(true);
   };
 
-  const handleExportCsv = () => {
-    if (receipts.length === 0) return;
+  // Dışa aktarma satırlarını hazırlayan ortak yardımcı
+  const buildExportRows = () => {
+    const rows: Array<{
+      Tarih: string;
+      Mağaza: string;
+      Kategori: string;
+      'Ürün Adı': string;
+      Adet: number;
+      'Birim Fiyat (₺)': number;
+      'Toplam Tutar (₺)': number;
+    }> = [];
 
+    for (const receipt of filteredReceipts) {
+      const itemsToExport = categoryFilter
+        ? receipt.items.filter(
+            (i) => i.category.toLowerCase() === categoryFilter.toLowerCase()
+          )
+        : receipt.items;
+
+      if (itemsToExport.length === 0) {
+        rows.push({
+          Tarih: receipt.date,
+          Mağaza: receipt.merchant,
+          Kategori: 'Diğer',
+          'Ürün Adı': 'Genel Fiş Tutarı',
+          Adet: 1,
+          'Birim Fiyat (₺)': Number(receipt.total_amount.toFixed(2)),
+          'Toplam Tutar (₺)': Number(receipt.total_amount.toFixed(2)),
+        });
+      } else {
+        for (const item of itemsToExport) {
+          const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
+          const unitPrice = getUnitPrice(item);
+          rows.push({
+            Tarih: receipt.date,
+            Mağaza: receipt.merchant,
+            Kategori: item.category,
+            'Ürün Adı': item.name,
+            Adet: qty,
+            'Birim Fiyat (₺)': Number(unitPrice.toFixed(2)),
+            'Toplam Tutar (₺)': Number(item.price.toFixed(2)),
+          });
+        }
+      }
+    }
+
+    return rows;
+  };
+
+  const handleExportCsv = () => {
+    if (filteredReceipts.length === 0) return;
+
+    const exportData = buildExportRows();
     const headers = [
       'Tarih',
       'Mağaza',
       'Kategori',
       'Ürün Adı',
       'Adet',
-      'Birim Fiyat',
-      'Toplam Fiyat',
+      'Birim Fiyat (₺)',
+      'Toplam Tutar (₺)',
     ];
 
-    const rows: string[] = [headers.join(',')];
-
-    for (const receipt of receipts) {
-      if (receipt.items.length === 0) {
-        rows.push(
-          [
-            escapeCsvCell(receipt.date),
-            escapeCsvCell(receipt.merchant),
-            escapeCsvCell('Diğer'),
-            escapeCsvCell('Genel Fiş Tutarı'),
-            escapeCsvCell(1),
-            escapeCsvCell(receipt.total_amount.toFixed(2)),
-            escapeCsvCell(receipt.total_amount.toFixed(2)),
-          ].join(',')
-        );
-      } else {
-        for (const item of receipt.items) {
-          const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
-          const unitPrice = getUnitPrice(item);
-          rows.push(
-            [
-              escapeCsvCell(receipt.date),
-              escapeCsvCell(receipt.merchant),
-              escapeCsvCell(item.category),
-              escapeCsvCell(item.name),
-              escapeCsvCell(qty),
-              escapeCsvCell(unitPrice.toFixed(2)),
-              escapeCsvCell(item.price.toFixed(2)),
-            ].join(',')
-          );
-        }
-      }
+    const lines: string[] = [headers.join(',')];
+    for (const row of exportData) {
+      lines.push(
+        [
+          escapeCsvCell(row.Tarih),
+          escapeCsvCell(row.Mağaza),
+          escapeCsvCell(row.Kategori),
+          escapeCsvCell(row['Ürün Adı']),
+          escapeCsvCell(row.Adet),
+          escapeCsvCell(row['Birim Fiyat (₺)'].toFixed(2)),
+          escapeCsvCell(row['Toplam Tutar (₺)'].toFixed(2)),
+        ].join(',')
+      );
     }
 
-    const csvContent = '\uFEFF' + rows.join('\r\n');
+    // UTF-8 BOM (\uFEFF) ile Türkçe karakter ve sütun uyumluluğu
+    const csvContent = '\uFEFF' + lines.join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -344,6 +409,30 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportExcel = () => {
+    if (filteredReceipts.length === 0) return;
+
+    const exportData = buildExportRows();
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+    // Sütun genişliklerini otomatik ayarla
+    worksheet['!cols'] = [
+      { wch: 14 }, // Tarih
+      { wch: 26 }, // Mağaza
+      { wch: 18 }, // Kategori
+      { wch: 32 }, // Ürün Adı
+      { wch: 10 }, // Adet
+      { wch: 16 }, // Birim Fiyat (₺)
+      { wch: 18 }, // Toplam Tutar (₺)
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Harcamalar');
+
+    const today = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `cebio-harcamalar-${today}.xlsx`);
   };
 
   const topCategory =
@@ -627,13 +716,18 @@ export default function App() {
           {/* Kategori Dağılımı Grafiği (7 kolon) */}
           <div className={`lg:col-span-7 ${CARD_SURFACE_CLASS} p-6 flex flex-col`}>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <PieChartIcon className="w-4 h-4 text-indigo-500" />
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">
-                  Kategori Bazlı Harcama Dağılımı
-                </h2>
+              <div>
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-indigo-500" />
+                  <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                    Kategori Bazlı Harcama Dağılımı
+                  </h2>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Tabloyu filtrelemek için grafikteki bir dilime veya sağdaki kategoriye tıklayın.
+                </p>
               </div>
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
                 {summary.category_breakdown.length} aktif kategori
               </span>
             </div>
@@ -652,10 +746,16 @@ export default function App() {
                   {/* Donut Grafiği Merkez Toplam Etiketi */}
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-7">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Toplam
+                      {categoryFilter ? categoryFilter : 'Toplam'}
                     </span>
                     <span className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-0.5">
-                      {formatCurrency(summary.total_amount)}
+                      {categoryFilter
+                        ? formatCurrency(
+                            summary.category_breakdown.find(
+                              (c) => c.category === categoryFilter
+                            )?.total_amount ?? summary.total_amount
+                          )
+                        : formatCurrency(summary.total_amount)}
                     </span>
                   </div>
 
@@ -670,15 +770,27 @@ export default function App() {
                         innerRadius={62}
                         outerRadius={94}
                         paddingAngle={2}
+                        className="cursor-pointer outline-none"
+                        onClick={(data: CategoryBreakdown) => {
+                          if (data && data.category) {
+                            handleToggleCategoryFilter(data.category);
+                          }
+                        }}
                       >
-                        {summary.category_breakdown.map((entry, index) => (
-                          <Cell
-                            key={`cell-${entry.category}`}
-                            fill={CHART_COLORS[index % CHART_COLORS.length]}
-                            stroke={darkMode ? '#0f172a' : '#ffffff'}
-                            strokeWidth={2}
-                          />
-                        ))}
+                        {summary.category_breakdown.map((entry, index) => {
+                          const isSelected =
+                            !categoryFilter || categoryFilter === entry.category;
+                          return (
+                            <Cell
+                              key={`cell-${entry.category}`}
+                              fill={CHART_COLORS[index % CHART_COLORS.length]}
+                              fillOpacity={isSelected ? 1 : 0.3}
+                              stroke={darkMode ? '#0f172a' : '#ffffff'}
+                              strokeWidth={categoryFilter === entry.category ? 3 : 2}
+                              className="cursor-pointer transition-opacity"
+                            />
+                          );
+                        })}
                       </Pie>
                       <Tooltip
                         content={<CustomPieTooltip totalAmount={summary.total_amount} />}
@@ -697,7 +809,7 @@ export default function App() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Kategori Listesi */}
+                {/* Kategori Listesi (Tıklanabilir Filtre Kartları) */}
                 <div className="md:col-span-5 flex flex-col justify-center space-y-2.5 max-h-[320px] overflow-y-auto scrollbar-thin pr-1">
                   {summary.category_breakdown.map((cat, idx) => {
                     const pct =
@@ -705,10 +817,17 @@ export default function App() {
                         ? Math.round((cat.total_amount / summary.total_amount) * 100)
                         : 0;
                     const color = CHART_COLORS[idx % CHART_COLORS.length];
+                    const isSelected = categoryFilter === cat.category;
                     return (
-                      <div
+                      <button
                         key={cat.category}
-                        className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 transition hover:border-slate-300 dark:hover:border-slate-700"
+                        type="button"
+                        onClick={() => handleToggleCategoryFilter(cat.category)}
+                        className={`w-full text-left p-3 rounded-xl border transition ${
+                          isSelected
+                            ? 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500 ring-1 ring-emerald-500/40'
+                            : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                        }`}
                       >
                         <div className="flex items-center justify-between text-xs font-medium">
                           <span className="flex items-center gap-2 truncate text-slate-800 dark:text-slate-100">
@@ -716,7 +835,7 @@ export default function App() {
                               className="w-2.5 h-2.5 rounded-full shrink-0"
                               style={{ backgroundColor: color }}
                             />
-                            {cat.category}
+                            <span className="font-semibold">{cat.category}</span>
                           </span>
                           <span className="font-semibold text-slate-900 dark:text-white">
                             {formatCurrency(cat.total_amount)}
@@ -726,7 +845,7 @@ export default function App() {
                           <span>{cat.item_count} ürün</span>
                           <span className="font-medium">%{pct}</span>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -735,21 +854,38 @@ export default function App() {
           </div>
         </section>
 
-        {/* Son Fişler Tablosu & Arama/Filtreleme + CSV İndirme */}
+        {/* Son Fişler Tablosu & Arama/Filtreleme + CSV & Excel İndirme */}
         <section className={`${CARD_SURFACE_CLASS} overflow-hidden`}>
           <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-500" />
-                Son Fişler ve Harcama Ürünleri
-              </h2>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-500" />
+                  Son Fişler ve Harcama Ürünleri
+                </h2>
+
+                {categoryFilter && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                    <Filter className="w-3 h-3" />
+                    <span>Kategori: {categoryFilter}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryFilter('')}
+                      className="hover:text-emerald-950 dark:hover:text-white"
+                      title="Kategori filtresini kaldır"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Bir fiş satırına tıklayarak ürünleri inceleyebilir veya "Düzenle" ile termal fiş üzerinde güncelleyebilirsiniz.
               </p>
             </div>
 
-            {/* Filtre Barı ve CSV İndir Butonu */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            {/* Filtre Barı ve Dışa Aktarma Butonları */}
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -780,28 +916,37 @@ export default function App() {
                 />
               </div>
 
-              {(merchantFilter || startDate || endDate) && (
+              {hasActiveFilters && (
                 <button
-                  onClick={() => {
-                    setMerchantFilter('');
-                    setStartDate('');
-                    setEndDate('');
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition"
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition"
                 >
-                  Temizle
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Filtreyi Temizle</span>
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={handleExportCsv}
-                disabled={receipts.length === 0}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition"
+                disabled={filteredReceipts.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-700 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition"
                 title="Filtrelenmiş fişleri CSV olarak indir"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>CSV İndir</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={filteredReceipts.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition"
+                title="Filtrelenmiş fişleri Excel (.xlsx) olarak indir"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Excel İndir</span>
               </button>
             </div>
           </div>
@@ -811,13 +956,36 @@ export default function App() {
               <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
               <span className="text-xs">Fiş kayıtları yükleniyor...</span>
             </div>
-          ) : receipts.length === 0 ? (
-            <div className="p-12 text-center text-slate-400">
-              <ReceiptIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-medium">Kayıtlı fiş bulunamadı</p>
-              <p className="text-xs mt-1">
-                Yeni bir fiş fotoğrafı yükleyerek veya filtreleri temizleyerek başlayabilirsiniz.
+          ) : filteredReceipts.length === 0 ? (
+            /* Boş Durum (Empty State) Gösterimi */
+            <div className="p-12 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 mb-3">
+                {hasActiveFilters ? (
+                  <Search className="w-6 h-6 text-slate-400" />
+                ) : (
+                  <ReceiptIcon className="w-6 h-6 text-slate-400" />
+                )}
+              </div>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                {hasActiveFilters
+                  ? 'Kriterlere uygun fiş bulunamadı'
+                  : 'Henüz kayıtlı fiş bulunmuyor'}
               </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md">
+                {hasActiveFilters
+                  ? 'Aradığınız mağaza adına, seçili kategoriye veya tarih aralığına ait bir harcama kaydı eşleşmedi.'
+                  : 'Yukarıdaki yükleme alanından yeni bir fiş fotoğrafı yükleyerek veya kamerayla çekerek başlayabilirsiniz.'}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Filtreyi Temizle</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -832,7 +1000,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800/70 text-sm">
-                  {receipts.map((receipt) => {
+                  {filteredReceipts.map((receipt) => {
                     const isExpanded = expandedReceiptId === receipt.id;
                     const totalQty = getReceiptTotalQuantity(receipt);
                     return (
@@ -902,10 +1070,17 @@ export default function App() {
                                 {receipt.items.map((item) => {
                                   const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
                                   const unitPrice = getUnitPrice(item);
+                                  const isHighlightedCategory =
+                                    categoryFilter &&
+                                    item.category.toLowerCase() === categoryFilter.toLowerCase();
                                   return (
                                     <div
                                       key={item.id}
-                                      className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-300/70 dark:border-slate-700/70 shadow-sm text-xs"
+                                      className={`flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border shadow-sm text-xs ${
+                                        isHighlightedCategory
+                                          ? 'border-emerald-500 ring-1 ring-emerald-500/30'
+                                          : 'border-slate-300/70 dark:border-slate-700/70'
+                                      }`}
                                     >
                                       <div className="min-w-0 pr-2">
                                         <div className="flex items-center gap-1.5 flex-wrap">

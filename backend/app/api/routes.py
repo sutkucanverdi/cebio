@@ -166,6 +166,10 @@ def list_receipts(
         None,
         description="Mağaza/market adına göre küçük-büyük harf duyarsız arama",
     ),
+    category: Optional[str] = Query(
+        None,
+        description="Ürün kategorisine göre filtreleme (Örn: Gıda, İçecek)",
+    ),
     start_date: Optional[str] = Query(
         None,
         description="Başlangıç tarihi filtresi (YYYY-MM-DD, dahil)",
@@ -180,6 +184,8 @@ def list_receipts(
 
     if merchant:
         stmt = stmt.where(Receipt.merchant.ilike(f"%{merchant.strip()}%"))
+    if category:
+        stmt = stmt.where(Receipt.items.any(ReceiptItem.category.ilike(category.strip())))
     if start_date:
         stmt = stmt.where(Receipt.date >= start_date.strip())
     if end_date:
