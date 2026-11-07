@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, Moon, RefreshCw, ShieldCheck, Sun, Trash2, UserRound, Wallet } from 'lucide-react';
+import { Crown, LogOut, Moon, RefreshCw, ShieldCheck, Sun, Trash2, UserRound, Wallet } from 'lucide-react';
 import type { User } from '../services/api';
 
 interface HeaderProps {
@@ -10,6 +10,7 @@ interface HeaderProps {
   onToggleDarkMode: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
+  onOpenPlan: () => void;
 }
 
 const ICON_BUTTON =
@@ -23,6 +24,7 @@ export function Header({
   onToggleDarkMode,
   onLogout,
   onDeleteAccount,
+  onOpenPlan,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -94,6 +96,16 @@ export function Header({
                   )}
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
                 </div>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenPlan();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <Crown className="w-4 h-4 text-amber-500" /> Planım ve kullanım
+                </button>
                 <a
                   role="menuitem"
                   href="/gizlilik.html"

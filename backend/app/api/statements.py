@@ -24,6 +24,7 @@ from app.schemas.statement import (
     TransactionUpdate,
 )
 from app.schemas.subscription import StatementTransaction
+from app.services.billing import ensure_quota, record_usage
 from app.services.analytics import matches, same_category
 from app.services.statement_import import build_preview, import_rows
 from app.services.subscription_detector import detect_subscriptions
@@ -70,7 +71,9 @@ async def preview_statement(
     current_user: User = Depends(get_current_user),
 ) -> StatementPreview:
     data, mime = await read_statement_upload(file)
+    ensure_quota(db, current_user, "statement_scan")
     parsed = await parse_statement_or_http(data, mime, current_user.id)
+    record_usage(db, current_user, "statement_scan")
 
     rows = to_rows(parsed.transactions)
     preview = build_preview(db, current_user.id, rows)

@@ -43,6 +43,10 @@ apiClient.interceptors.response.use(
       setStoredToken(null);
       unauthorizedHandler?.();
     }
+    if (error.response?.status === 402) {
+      const detail = (error.response.data as { detail?: string } | undefined)?.detail;
+      window.dispatchEvent(new CustomEvent(LIMIT_EVENT, { detail }));
+    }
     return Promise.reject(error);
   }
 );
@@ -476,3 +480,28 @@ export async function updateTransactionCategory(id: number, category: string): P
 export async function deleteTransaction(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/transactions/${id}`);
 }
+
+// --- Plan / kullanım limitleri ---
+
+export interface FeatureUsage {
+  feature: 'receipt_scan' | 'statement_scan' | 'assistant';
+  label: string;
+  used: number;
+  limit: number;
+}
+
+export interface PlanStatus {
+  plan: 'free' | 'premium';
+  premium_until: string | null;
+  plan_source: string | null;
+  period: string;
+  resets_on: string;
+  features: FeatureUsage[];
+}
+
+export async function getPlanStatus(): Promise<PlanStatus> {
+  return (await apiClient.get<PlanStatus>('/api/v1/billing/status')).data;
+}
+
+/** Plan limiti dolunca (HTTP 402) uygulamanın her yerinden "Planımı gör" uyarısı gösterebilmek için olay. */
+export const LIMIT_EVENT = 'cebio:limit-reached';

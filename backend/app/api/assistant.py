@@ -13,6 +13,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+from app.services.billing import ensure_quota, record_usage
 from app.services.ai_errors import is_quota_error, quota_exceeded
 from app.services.assistant import ChatTurn, assistant_service
 from app.services.assistant_tools import ToolContext
@@ -94,6 +95,8 @@ async def chat(
             detail="Çok fazla soru sordunuz. Lütfen birkaç dakika sonra tekrar deneyin.",
         )
 
+    ensure_quota(db, current_user, "assistant")
+
     ctx = ToolContext(db=db, user_id=current_user.id, today=today())
     history = [ChatTurn(role=m.role, content=m.content.strip()) for m in payload.messages]
 
@@ -111,4 +114,5 @@ async def chat(
             detail="Asistana şu anda ulaşılamıyor. Lütfen biraz sonra tekrar deneyin.",
         ) from exc
 
+    record_usage(db, current_user, "assistant")
     return ChatResponse(reply=result.reply, tools_used=result.tools_used)

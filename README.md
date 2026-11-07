@@ -9,6 +9,8 @@ cevaplayan bir cüzdan denetçisidir.
 - **Fişler:** fotoğraftan otomatik ayrıştırma, düzenleme, kategori grafiği, CSV/Excel dışa aktarma
 - **Banka/kart ekstresi:** PDF/CSV/ekran görüntüsü ekstre içe aktarılır; işlemler kategorilere ayrılır,
   mükerrerler atlanır, fişi kayıtlı harcamalar eşleştirilip iki kez sayılmaz, içe aktarma geri alınabilir
+- **Ücretsiz/Premium plan:** aylık yapay zeka limitleri (fiş, ekstre, asistan), "Planım" ekranı,
+  RevenueCat webhook'u ile mağaza abonelikleri, `python -m app.cli grant-premium` ile elle premium
 - **Abonelikler:** aylık/yıllık sabit gider, yaklaşan yenilemeler, deneme süresi uyarısı, zam geçmişi,
   hazır servis kataloğu (Netflix, Spotify, YouTube Premium...)
 - **Analiz & bütçe:** son 6 ayın harcama trendi, genel veya kategori bazlı aylık bütçeler
@@ -34,7 +36,7 @@ cebio/
 │   │   ├── services/            # Gemini ayrıştırıcılar, abonelik tespiti, analytics, AI asistan + araçları
 │   │   └── main.py
 │   ├── Dockerfile               # Production imajı (root olmayan kullanıcı, healthcheck)
-│   ├── tests/                   # pytest (66 test)
+│   ├── tests/                   # pytest (78 test)
 │   ├── requirements.txt
 │   └── .env.example
 ├── docker-compose.yml           # Postgres + API (production benzeri yerel ortam)
@@ -141,6 +143,7 @@ Swagger UI: `http://localhost:8000/docs` (sağ üstteki **Authorize** ile giriş
 | `GET /api/v1/analytics/trend` | Son N ayın harcaması: fiş + banka ayrı ayrı (`months`, en fazla 24) |
 | `GET/POST /api/v1/budgets` | Bütçeler ve aylık durumları (`month=YYYY-MM`) / bütçe ekle |
 | `PUT/DELETE /api/v1/budgets/{id}` | Bütçe limitini güncelle / sil |
+| `GET /api/v1/billing/status` | Plan ve bu ayki kullanım / limitler |
 | `POST /api/v1/assistant/chat` | AI asistana soru sor (son 20 mesaj; kullanıcı başına istek limiti) |
 
 Fiş, abonelik, bütçe ve asistan uç noktalarının hepsi `Authorization: Bearer <token>` başlığı ister ve yalnızca kullanıcının kendi kayıtlarını döner.

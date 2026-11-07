@@ -27,6 +27,7 @@ from app.schemas.subscription import (
     SubscriptionSummary,
     SubscriptionUpdate,
 )
+from app.services.billing import ensure_quota, record_usage
 from app.services.statement_parser import statement_parser_service  # noqa: F401 - testler bu yoldan taklit eder
 from app.services.subscription_catalog import CATALOG, match_catalog, normalize_text
 from app.services.subscription_detector import detect_subscriptions
@@ -226,7 +227,9 @@ async def detect_from_statement(
     current_user: User = Depends(get_current_user),
 ) -> DetectionResponse:
     data, mime = await read_statement_upload(file)
+    ensure_quota(db, current_user, "statement_scan")
     parsed = await parse_statement_or_http(data, mime, current_user.id)
+    record_usage(db, current_user, "statement_scan")
 
     candidates = detect_subscriptions(parsed.transactions, today())
     mark_already_tracked(db, current_user, candidates)

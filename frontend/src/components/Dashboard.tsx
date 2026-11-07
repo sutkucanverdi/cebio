@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Landmark, Receipt as ReceiptIcon, Repeat, Sparkles } from 'lucide-react';
+import { Crown, Landmark, Receipt as ReceiptIcon, Repeat, Sparkles, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { syncStatusBar } from '../lib/native';
 import { storageGet, storageSet } from '../lib/storage';
-import { getApiErrorMessage } from '../services/api';
+import { getApiErrorMessage, LIMIT_EVENT } from '../services/api';
 import { AssistantMessage, AssistantView } from './AssistantView';
 import { BankView } from './bank/BankView';
 import { Header } from './Header';
+import { PlanModal } from './PlanModal';
 import { ReceiptsView } from './ReceiptsView';
 import { SubscriptionsView } from './subscriptions/SubscriptionsView';
 import { Notice } from './ui';
@@ -52,6 +53,18 @@ export function Dashboard() {
   const [chat, setChat] = useState<AssistantMessage[]>([]);
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [isPlanOpen, setIsPlanOpen] = useState(false);
+  // Herhangi bir ekranda plan limiti dolunca (HTTP 402) gösterilen uyarı
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onLimit = (e: Event) => {
+      const detail = (e as CustomEvent<string | undefined>).detail;
+      setLimitMessage(detail || 'Bu ayki kullanım limitinize ulaştınız.');
+    };
+    window.addEventListener(LIMIT_EVENT, onLimit);
+    return () => window.removeEventListener(LIMIT_EVENT, onLimit);
+  }, []);
 
   useEffect(() => {
     storageSet(TAB_KEY, tab);
@@ -78,6 +91,7 @@ export function Dashboard() {
         onToggleDarkMode={toggleDarkMode}
         onLogout={logout}
         onDeleteAccount={() => void handleDeleteAccount()}
+        onOpenPlan={() => setIsPlanOpen(true)}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-safe space-y-6">
@@ -108,6 +122,38 @@ export function Dashboard() {
             );
           })}
         </nav>
+
+        {isPlanOpen && <PlanModal onClose={() => setIsPlanOpen(false)} />}
+
+        {limitMessage && (
+          <div
+            role="alert"
+            className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-sm"
+          >
+            <Crown className="w-5 h-5 text-amber-500 shrink-0" />
+            <span className="flex-1">{limitMessage}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPlanOpen(true);
+                  setLimitMessage(null);
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950"
+              >
+                Planımı gör
+              </button>
+              <button
+                type="button"
+                onClick={() => setLimitMessage(null)}
+                aria-label="Uyarıyı kapat"
+                className="p-1 rounded-lg hover:bg-amber-500/20"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {accountError && <Notice kind="error" message={accountError} onClose={() => setAccountError(null)} />}
 
