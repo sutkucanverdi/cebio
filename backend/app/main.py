@@ -9,6 +9,7 @@ from app.api.analytics import router as analytics_router
 from app.api.assistant import router as assistant_router
 from app.api.auth import router as auth_router
 from app.api.routes import router as receipts_router
+from app.api.statements import router as statements_router
 from app.api.subscriptions import router as subscriptions_router
 from app.core.config import settings
 from app.core.migrations import run_migrations
@@ -44,6 +45,7 @@ app.include_router(auth_router)
 app.include_router(receipts_router)
 app.include_router(subscriptions_router)
 app.include_router(analytics_router)
+app.include_router(statements_router)
 app.include_router(assistant_router)
 
 

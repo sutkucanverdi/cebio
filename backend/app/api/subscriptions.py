@@ -2,7 +2,6 @@ import datetime as dt
 import logging
 from collections import defaultdict
 from decimal import Decimal
-from pathlib import Path
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
@@ -11,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.api.routes import to_money
-from app.core.config import settings
+from app.api.uploads import parse_statement_or_http, read_statement_upload
 from app.core.database import get_db
 from app.models.subscription import Subscription, SubscriptionPriceChange
 from app.models.user import User
@@ -21,15 +20,14 @@ from app.schemas.subscription import (
     CurrencyTotal,
     DetectionResponse,
     PriceChangeResponse,
+    SubscriptionCandidate,
     SubscriptionCreate,
     SubscriptionResponse,
     SubscriptionStatus,
     SubscriptionSummary,
     SubscriptionUpdate,
 )
-from app.services.ai_errors import is_quota_error, quota_exceeded
-from app.services.receipt_parser import ReceiptParseError
-from app.services.statement_parser import statement_parser_service
+from app.services.statement_parser import statement_parser_service  # noqa: F401 - testler bu yoldan taklit eder
 from app.services.subscription_catalog import CATALOG, match_catalog, normalize_text
 from app.services.subscription_detector import detect_subscriptions
 from app.services.subscription_logic import monthly_equivalent, roll_forward, yearly_equivalent
@@ -41,16 +39,6 @@ router = APIRouter(prefix="/api/v1/subscriptions", tags=["Subscriptions"])
 BILLABLE_STATUSES = {SubscriptionStatus.active.value, SubscriptionStatus.trial.value}
 PRICE_INCREASE_WINDOW_DAYS = 90
 
-STATEMENT_MIME_BY_EXT = {
-    ".pdf": "application/pdf",
-    ".csv": "text/csv",
-    ".txt": "text/plain",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-}
-STATEMENT_MIMES = set(STATEMENT_MIME_BY_EXT.values()) | {"application/vnd.ms-excel"}
 
 
 def today() -> dt.date:
@@ -125,6 +113,19 @@ def apply_fields(sub: Subscription, payload: SubscriptionCreate | SubscriptionUp
     sub.trial_ends_at = payload.trial_ends_at
     sub.cancel_url = payload.cancel_url
     sub.notes = (payload.notes or "").strip() or None
+
+
+def mark_already_tracked(db: Session, user: User, candidates: List[SubscriptionCandidate]) -> None:
+    """Kullanıcının zaten takip ettiği (iptal edilmemiş) aboneliklerle eşleşen adayları işaretler."""
+    tracked_keys = set()
+    for sub in load_user_subscriptions(db, user):
+        if sub.status == SubscriptionStatus.cancelled.value:
+            continue
+        item = match_catalog(sub.name)
+        tracked_keys.add(item["key"] if item else normalize_text(sub.name))
+    for cand in candidates:
+        item = match_catalog(cand.name)
+        cand.already_tracked = (item["key"] if item else normalize_text(cand.name)) in tracked_keys
 
 
 def _sorted_totals(totals: Dict[str, Decimal]) -> List[CurrencyTotal]:
@@ -224,54 +225,11 @@ async def detect_from_statement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DetectionResponse:
-    content_type = (file.content_type or "").split(";")[0].strip().lower()
-    ext = Path(file.filename or "").suffix.lower()
-    mime: Optional[str] = STATEMENT_MIME_BY_EXT.get(ext)
-    if mime is None and content_type in STATEMENT_MIMES:
-        mime = "text/csv" if content_type == "application/vnd.ms-excel" else content_type
-    if mime is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Desteklenmeyen dosya. Lütfen ekstreyi PDF, CSV veya ekran görüntüsü olarak yükleyin.",
-        )
-
-    max_bytes = settings.max_upload_bytes
-    data = await file.read(max_bytes + 1)
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Yüklenen dosya boş.")
-    if len(data) > max_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"Dosya çok büyük. En fazla {settings.MAX_UPLOAD_MB} MB yükleyebilirsiniz.",
-        )
-
-    try:
-        parsed = await statement_parser_service.parse_statement(data, mime)
-    except ReceiptParseError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
-    except Exception as exc:
-        if is_quota_error(exc):
-            logger.warning("Gemini kotası doldu (user_id=%s)", current_user.id)
-            raise quota_exceeded() from exc
-        logger.exception("Ekstre ayrıştırma hatası (user_id=%s)", current_user.id)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Ekstre analiz servisine şu anda ulaşılamıyor. Lütfen biraz sonra tekrar deneyin.",
-        ) from exc
+    data, mime = await read_statement_upload(file)
+    parsed = await parse_statement_or_http(data, mime, current_user.id)
 
     candidates = detect_subscriptions(parsed.transactions, today())
-
-    existing = load_user_subscriptions(db, current_user)
-    tracked_keys = set()
-    for sub in existing:
-        if sub.status == SubscriptionStatus.cancelled.value:
-            continue
-        item = match_catalog(sub.name)
-        tracked_keys.add(item["key"] if item else normalize_text(sub.name))
-    for cand in candidates:
-        item = match_catalog(cand.name)
-        cand.already_tracked = (item["key"] if item else normalize_text(cand.name)) in tracked_keys
-
+    mark_already_tracked(db, current_user, candidates)
     return DetectionResponse(transactions_found=len(parsed.transactions), candidates=candidates)
 
 

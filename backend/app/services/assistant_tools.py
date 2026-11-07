@@ -16,6 +16,7 @@ from app.services.analytics import (
     monthly_trend,
     parse_month,
     search_items,
+    search_transactions,
     spending_summary,
 )
 from app.services.subscription_logic import monthly_equivalent, yearly_equivalent
@@ -78,6 +79,18 @@ def tool_spending_summary(ctx: ToolContext, args: Dict[str, Any]) -> dict:
 
 def tool_monthly_trend(ctx: ToolContext, args: Dict[str, Any]) -> dict:
     return {"months": monthly_trend(ctx.db, ctx.user_id, _int(args, "months", 6, 1, 24), ctx.today)}
+
+
+def tool_search_bank(ctx: ToolContext, args: Dict[str, Any]) -> dict:
+    return search_transactions(
+        ctx.db,
+        ctx.user_id,
+        query=_str(args, "query"),
+        start=_date(args, "start_date"),
+        end=_date(args, "end_date"),
+        category=_str(args, "category"),
+        limit=_int(args, "limit", 20, 1, 50),
+    )
 
 
 def tool_search_items(ctx: ToolContext, args: Dict[str, Any]) -> dict:
@@ -154,10 +167,11 @@ _DATE_PARAM = {"type": "string", "description": "YYYY-MM-DD"}
 # name -> (açıklama, JSON şeması, uygulama)
 TOOLS: Dict[str, tuple[str, dict, Callable[[ToolContext, Dict[str, Any]], dict]]] = {
     "get_spending_summary": (
-        "Tarih aralığındaki fiş harcamalarının toplamını, kategori ve mağaza kırılımını getirir. "
-        "category verilirse toplam yalnızca o kategorideki ürünlerin toplamıdır. "
+        "Tarih aralığındaki TOPLAM harcamayı getirir: fişler + ekstreden içe aktarılan banka/kart işlemleri "
+        "(receipts_total ve bank_total ayrı ayrı da döner). Kategori ve işyeri kırılımı içerir. "
+        "category verilirse fişlerde yalnızca o kategorideki ürünler, bankada o kategorideki işlemler toplanır. "
         "Kategoriler: Gıda, Atıştırmalık, İçecek, Temizlik, Kişisel Bakım, Ev & Yaşam, Elektronik, Giyim, "
-        "Restoran & Kafe, Ulaşım, Diğer.",
+        "Restoran & Kafe, Ulaşım, Fatura & İletişim, Sağlık, Eğlence, Eğitim, Abonelik, Nakit & Transfer, Diğer.",
         {
             "type": "object",
             "properties": {
@@ -176,6 +190,22 @@ TOOLS: Dict[str, tuple[str, dict, Callable[[ToolContext, Dict[str, Any]], dict]]
             "properties": {"months": {"type": "integer", "description": "Kaç ay (1-24), varsayılan 6"}},
         },
         tool_monthly_trend,
+    ),
+    "search_bank_transactions": (
+        "Kullanıcının içe aktardığı banka/kart ekstresi işlemlerinde işyeri adı veya açıklamada arama yapar "
+        "(Örn: 'shell', 'yemeksepeti', 'trendyol') ve/veya kategoriye göre süzer; toplam tutarı ve işlemleri getirir. "
+        "Ekstre, kart veya banka ile ilgili sorularda bunu kullan.",
+        {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "İşyeri/açıklamada aranacak ifade (opsiyonel)"},
+                "category": {"type": "string", "description": "Kategori (opsiyonel)"},
+                "start_date": _DATE_PARAM,
+                "end_date": _DATE_PARAM,
+                "limit": {"type": "integer", "description": "En fazla kaç işlem (varsayılan 20)"},
+            },
+        },
+        tool_search_bank,
     ),
     "search_purchased_items": (
         "Fişlerdeki ürün adlarında arama yapar (Örn: 'kahve', 'süt', 'deterjan') ve eşleşen ürünlerin "

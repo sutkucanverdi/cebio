@@ -20,7 +20,10 @@ Gönderilen ekstreden yalnızca HARCAMA (para çıkışı / borç) işlemlerini 
 - date: İşlem tarihini YYYY-MM-DD formatına çevir. Yıl yazmıyorsa ekstre dönemine göre tahmin et.
 - description: Üye işyeri / açıklama metnini ekstrede yazdığı gibi, kısaltmadan yaz.
 - amount: Tutarı pozitif ondalık sayı olarak yaz (Türkçe 1.234,56 -> 1234.56).
-- currency: İşlemin orijinal para birimi (TRY, USD, EUR...). Belirtilmemişse TRY.
+- amount/currency: Ekstrede işlemin TL karşılığı yazıyorsa (yurt dışı harcamalarda da genelde yazar) TL tutarını
+  ve currency=TRY kullan. Yalnızca TL karşılığı hiç yoksa orijinal tutarı ve para birimini (USD, EUR...) yaz.
+- category: İşyeri adına bakarak şemadaki kategorilerden en uygun olanı seç (Migros/BİM/A101/ŞOK -> Gıda,
+  Shell/Opet/BP -> Ulaşım, Netflix/Spotify -> Abonelik, Turkcell/Türk Telekom/İGDAŞ -> Fatura & İletişim).
 Kart borcu ödemeleri, iadeler, para girişleri, faiz/ücret iadeleri ve devreden bakiye satırlarını EKLEME.
 Taksitli işlemlerde her taksiti ayrı işlem olarak değil, ekstrede göründüğü şekliyle tek satır olarak yaz.
 """

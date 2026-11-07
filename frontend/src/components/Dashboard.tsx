@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Receipt as ReceiptIcon, Repeat, Sparkles } from 'lucide-react';
+import { Landmark, Receipt as ReceiptIcon, Repeat, Sparkles } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { syncStatusBar } from '../lib/native';
 import { storageGet, storageSet } from '../lib/storage';
 import { getApiErrorMessage } from '../services/api';
 import { AssistantMessage, AssistantView } from './AssistantView';
+import { BankView } from './bank/BankView';
 import { Header } from './Header';
 import { ReceiptsView } from './ReceiptsView';
 import { SubscriptionsView } from './subscriptions/SubscriptionsView';
@@ -13,13 +14,15 @@ import { Notice } from './ui';
 const THEME_KEY = 'cebio.theme';
 const TAB_KEY = 'cebio.tab';
 
-type Tab = 'receipts' | 'subscriptions' | 'assistant';
-const VALID_TABS: Tab[] = ['receipts', 'subscriptions', 'assistant'];
+type Tab = 'receipts' | 'bank' | 'subscriptions' | 'assistant';
+const VALID_TABS: Tab[] = ['receipts', 'bank', 'subscriptions', 'assistant'];
 
-const TABS: { id: Tab; label: string; Icon: typeof ReceiptIcon }[] = [
-  { id: 'receipts', label: 'Fişler', Icon: ReceiptIcon },
-  { id: 'subscriptions', label: 'Abonelikler', Icon: Repeat },
-  { id: 'assistant', label: 'Asistan', Icon: Sparkles },
+// short: telefonda 4 sekme yan yana sığsın diye kısa ad
+const TABS: { id: Tab; label: string; short: string; Icon: typeof ReceiptIcon }[] = [
+  { id: 'receipts', label: 'Fişler', short: 'Fişler', Icon: ReceiptIcon },
+  { id: 'bank', label: 'Banka', short: 'Banka', Icon: Landmark },
+  { id: 'subscriptions', label: 'Abonelikler', short: 'Abonelik', Icon: Repeat },
+  { id: 'assistant', label: 'Asistan', short: 'Asistan', Icon: Sparkles },
 ];
 
 function useDarkMode(): [boolean, () => void] {
@@ -81,9 +84,9 @@ export function Dashboard() {
         <nav
           role="tablist"
           aria-label="Bölümler"
-          className="inline-grid grid-cols-3 gap-1 p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-sm w-full sm:w-auto"
+          className="inline-grid grid-cols-4 gap-1 p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-sm w-full sm:w-auto"
         >
-          {TABS.map(({ id, label, Icon }) => {
+          {TABS.map(({ id, label, short, Icon }) => {
             const active = tab === id;
             return (
               <button
@@ -92,14 +95,15 @@ export function Dashboard() {
                 type="button"
                 aria-selected={active}
                 onClick={() => setTab(id)}
-                className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 rounded-lg text-sm font-semibold transition ${
+                className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition ${
                   active
                     ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-slate-950 shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 <Icon className="w-4 h-4 hidden sm:block" />
-                {label}
+                <span className="sm:hidden">{short}</span>
+                <span className="hidden sm:inline">{label}</span>
               </button>
             );
           })}
@@ -108,6 +112,7 @@ export function Dashboard() {
         {accountError && <Notice kind="error" message={accountError} onClose={() => setAccountError(null)} />}
 
         {tab === 'receipts' && <ReceiptsView darkMode={darkMode} refreshSignal={refreshSignal} />}
+        {tab === 'bank' && <BankView refreshSignal={refreshSignal} />}
         {tab === 'subscriptions' && <SubscriptionsView refreshSignal={refreshSignal} />}
         {tab === 'assistant' && <AssistantView messages={chat} setMessages={setChat} />}
       </main>

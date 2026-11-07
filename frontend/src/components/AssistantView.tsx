@@ -18,6 +18,7 @@ const SUGGESTIONS = [
   'Kahveye ne kadar para veriyorum?',
   'En pahalı aboneliğim hangisi?',
   'Bütçemi aşıyor muyum?',
+  'Ekstreme göre en çok nereye harcadım?',
 ];
 
 const TOOL_LABELS: Record<string, string> = {
@@ -27,6 +28,7 @@ const TOOL_LABELS: Record<string, string> = {
   list_recent_receipts: 'Fiş listesi',
   get_subscriptions: 'Abonelikler',
   get_budget_status: 'Bütçeler',
+  search_bank_transactions: 'Banka işlemleri',
 };
 
 /** **kalın** işaretlerini <strong>'a çevirir; HTML enjekte etmeden güvenli render. */
@@ -142,7 +144,7 @@ export function AssistantView({ messages, setMessages }: AssistantViewProps) {
           <div>
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Cebio Asistan</h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Fişlerine, aboneliklerine ve bütçelerine bakarak cevaplar
+              Fişlerine, banka harcamalarına, aboneliklerine ve bütçelerine bakarak cevaplar
             </p>
           </div>
         </div>

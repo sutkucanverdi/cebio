@@ -10,6 +10,8 @@ class TrendPoint(BaseModel):
     month: str = Field(description="YYYY-MM")
     label: str = Field(description="Örn: Kas 2026")
     total: Money
+    receipts_total: Money = Field(description="Fişlerden gelen harcama")
+    bank_total: Money = Field(description="Banka/kart ekstresinden gelen (fişle eşleşmeyen) harcama")
     receipt_count: int
 
 

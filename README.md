@@ -7,6 +7,8 @@ cevaplayan bir cüzdan denetçisidir.
 ## Özellikler
 
 - **Fişler:** fotoğraftan otomatik ayrıştırma, düzenleme, kategori grafiği, CSV/Excel dışa aktarma
+- **Banka/kart ekstresi:** PDF/CSV/ekran görüntüsü ekstre içe aktarılır; işlemler kategorilere ayrılır,
+  mükerrerler atlanır, fişi kayıtlı harcamalar eşleştirilip iki kez sayılmaz, içe aktarma geri alınabilir
 - **Abonelikler:** aylık/yıllık sabit gider, yaklaşan yenilemeler, deneme süresi uyarısı, zam geçmişi,
   hazır servis kataloğu (Netflix, Spotify, YouTube Premium...)
 - **Analiz & bütçe:** son 6 ayın harcama trendi, genel veya kategori bazlı aylık bütçeler
@@ -32,7 +34,7 @@ cebio/
 │   │   ├── services/            # Gemini ayrıştırıcılar, abonelik tespiti, analytics, AI asistan + araçları
 │   │   └── main.py
 │   ├── Dockerfile               # Production imajı (root olmayan kullanıcı, healthcheck)
-│   ├── tests/                   # pytest (52 test)
+│   ├── tests/                   # pytest (66 test)
 │   ├── requirements.txt
 │   └── .env.example
 ├── docker-compose.yml           # Postgres + API (production benzeri yerel ortam)
@@ -132,7 +134,11 @@ Swagger UI: `http://localhost:8000/docs` (sağ üstteki **Authorize** ile giriş
 | `GET /api/v1/subscriptions/summary` | Aylık/yıllık toplam (para birimine göre), yaklaşan yenilemeler, biten denemeler, zamlar |
 | `GET /api/v1/subscriptions/catalog` | Hazır servis listesi |
 | `POST /api/v1/subscriptions/detect` | Ekstreden abonelik adayları (hiçbir şey kaydetmez) |
-| `GET /api/v1/analytics/trend` | Son N ayın harcama toplamları (`months`, en fazla 24) |
+| `POST /api/v1/statements/preview` | Ekstreyi oku: işlemler, mükerrer/fiş eşleşmesi, olası abonelikler (kaydetmez) |
+| `POST /api/v1/statements/import` | Onaylanan satırları kaydet (mükerrerler atlanır) |
+| `GET /api/v1/statements` · `DELETE /api/v1/statements/{id}` | İçe aktarılan ekstreler / içe aktarmayı geri al |
+| `GET /api/v1/transactions` · `PATCH/DELETE /api/v1/transactions/{id}` | Banka işlemleri (`q`, `category`, tarih) / kategori değiştir / sil |
+| `GET /api/v1/analytics/trend` | Son N ayın harcaması: fiş + banka ayrı ayrı (`months`, en fazla 24) |
 | `GET/POST /api/v1/budgets` | Bütçeler ve aylık durumları (`month=YYYY-MM`) / bütçe ekle |
 | `PUT/DELETE /api/v1/budgets/{id}` | Bütçe limitini güncelle / sil |
 | `POST /api/v1/assistant/chat` | AI asistana soru sor (son 20 mesaj; kullanıcı başına istek limiti) |

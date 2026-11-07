@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.models.budget import Budget
     from app.models.receipt import Receipt
     from app.models.subscription import Subscription
+    from app.models.transaction import StatementImport
 
 
 class User(Base):
@@ -42,6 +43,12 @@ class User(Base):
     )
     budgets: Mapped[List["Budget"]] = relationship(
         "Budget",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    statement_imports: Mapped[List["StatementImport"]] = relationship(
+        "StatementImport",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
