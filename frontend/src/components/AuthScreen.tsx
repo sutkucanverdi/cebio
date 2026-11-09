@@ -1,7 +1,8 @@
 import { FormEvent, useState } from 'react';
-import { AlertCircle, Loader2, Wallet } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Wallet } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { getApiErrorMessage } from '../services/api';
+import { ForgotPasswordFlow } from './ForgotPasswordFlow';
 
 type Mode = 'login' | 'register';
 
@@ -17,6 +18,8 @@ export function AuthScreen() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isForgot, setIsForgot] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const isRegister = mode === 'register';
 
@@ -60,6 +63,27 @@ export function AuthScreen() {
           </p>
         </div>
 
+        {notice && !isForgot && (
+          <div className="mb-3 flex items-start gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{notice}</span>
+          </div>
+        )}
+
+        {isForgot ? (
+          <ForgotPasswordFlow
+            initialEmail={email}
+            onBack={() => setIsForgot(false)}
+            onDone={(resetEmail) => {
+              setEmail(resetEmail);
+              setPassword('');
+              setMode('login');
+              setError(null);
+              setIsForgot(false);
+              setNotice('Şifren değiştirildi. Yeni şifrenle giriş yapabilirsin.');
+            }}
+          />
+        ) : (
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-sm p-6 space-y-4"
@@ -124,6 +148,19 @@ export function AuthScreen() {
             {isRegister && (
               <span className="block text-[11px] text-slate-400">En az 8 karakter</span>
             )}
+            {!isRegister && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setNotice(null);
+                  setIsForgot(true);
+                }}
+                className="block ml-auto text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+              >
+                Şifremi unuttum
+              </button>
+            )}
           </label>
 
           {isRegister && (
@@ -164,6 +201,7 @@ export function AuthScreen() {
             {isRegister ? 'Hesap Oluştur' : 'Giriş Yap'}
           </button>
         </form>
+        )}
 
         <p className="mt-4 text-center text-[11px] text-slate-400">
           <a href="/gizlilik.html" target="_blank" rel="noopener" className="hover:underline">Gizlilik</a>

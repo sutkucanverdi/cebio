@@ -23,6 +23,8 @@ class User(Base):
     # KVKK açık rıza / kullanım koşulları onayı (hangi metin sürümü, ne zaman)
     terms_version: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     terms_accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Bu tarihten önce verilmiş oturumlar (JWT) geçersizdir; şifre sıfırlanınca güncellenir
+    password_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     # Premium bitiş zamanı; None veya geçmişte ise kullanıcı ücretsiz plandadır
     premium_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     # Premium'u neyin verdiği: revenuecat (mağaza aboneliği), promo, admin

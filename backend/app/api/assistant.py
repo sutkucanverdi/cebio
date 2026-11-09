@@ -1,9 +1,6 @@
 import datetime as dt
 import logging
-import threading
-import time
-from collections import defaultdict, deque
-from typing import Deque, Dict, List, Literal
+from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
@@ -12,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import RateLimiter
 from app.models.user import User
 from app.services.billing import ensure_quota, record_usage
 from app.services.ai_errors import is_quota_error, quota_exceeded
@@ -46,34 +44,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     tools_used: List[str]
-
-
-class RateLimiter:
-    """Kullanıcı başına kayan pencereli basit istek limiti (tek süreç için, bellek içi).
-
-    Birden fazla sunucu örneğine geçildiğinde Redis tabanlı bir limitleyiciyle değiştirilmeli.
-    """
-
-    def __init__(self, max_requests: int, window_seconds: int) -> None:
-        self.max_requests = max_requests
-        self.window = window_seconds
-        self._hits: Dict[int, Deque[float]] = defaultdict(deque)
-        self._lock = threading.Lock()
-
-    def allow(self, key: int) -> bool:
-        now = time.monotonic()
-        with self._lock:
-            hits = self._hits[key]
-            while hits and now - hits[0] > self.window:
-                hits.popleft()
-            if len(hits) >= self.max_requests:
-                return False
-            hits.append(now)
-            return True
-
-    def reset(self) -> None:
-        with self._lock:
-            self._hits.clear()
 
 
 rate_limiter = RateLimiter(settings.ASSISTANT_RATE_LIMIT, settings.ASSISTANT_RATE_WINDOW_SECONDS)

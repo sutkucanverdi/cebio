@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
@@ -9,14 +9,26 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import RateLimiter
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.receipt import Receipt
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, UserCreate, UserResponse
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    MessageResponse,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserCreate,
+    UserResponse,
+)
+from app.services.password_reset import create_reset_code, reset_password, send_reset_email
 
 logger = logging.getLogger("cebio")
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
+
+reset_request_limiter = RateLimiter(settings.PASSWORD_RESET_REQUESTS_PER_WINDOW, settings.PASSWORD_RESET_WINDOW_SECONDS)
 
 _INVALID_LOGIN = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -94,6 +106,32 @@ def login_form(
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     return _token_response(_authenticate(db, form.username, form.password))
+
+
+@router.post(
+    "/forgot-password",
+    response_model=MessageResponse,
+    summary="Şifre sıfırlama kodu gönder",
+    description="Hesabın var olup olmadığını açığa çıkarmamak için her durumda aynı cevabı döner.",
+)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    user = db.scalars(select(User).where(User.email == payload.email.strip().lower())).first()
+    # Limit yalnızca var olan hesaplar için tutulur; rastgele adreslerle bellek şişirilemez
+    if user is not None and reset_request_limiter.allow(user.id):
+        code = create_reset_code(db, user)
+        background_tasks.add_task(send_reset_email, user.email, code)
+    return MessageResponse(message="Bu e-posta adresi kayıtlıysa sıfırlama kodu gönderildi.")
+
+
+@router.post("/reset-password", response_model=MessageResponse, summary="Kodla yeni şifre belirle")
+def reset_password_endpoint(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> MessageResponse:
+    if not reset_password(db, payload.email, payload.code, payload.new_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Kod hatalı veya süresi dolmuş.")
+    return MessageResponse(message="Şifreniz değiştirildi. Yeni şifrenizle giriş yapabilirsiniz.")
 
 
 @router.get("/me", response_model=UserResponse, summary="Giriş yapmış kullanıcının bilgileri")

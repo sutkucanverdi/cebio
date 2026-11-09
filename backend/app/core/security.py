@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Tuple
 
 import bcrypt
 import jwt
@@ -28,10 +28,15 @@ def create_access_token(user_id: int, expires_minutes: Optional[int] = None) -> 
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[int]:
-    """Geçerli bir token ise kullanıcı ID'sini, aksi halde None döner."""
+def decode_access_token(token: str) -> Optional[Tuple[int, int]]:
+    """Geçerli bir token ise (kullanıcı ID, verildiği zaman) döner, aksi halde None."""
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        return int(payload["sub"])
+        return int(payload["sub"]), int(payload["iat"])
     except (jwt.PyJWTError, KeyError, ValueError, TypeError):
         return None
+
+
+def as_utc(value: datetime) -> datetime:
+    """SQLite saat dilimi bilgisini kaybedebilir; karşılaştırma için UTC'ye sabitler."""
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
