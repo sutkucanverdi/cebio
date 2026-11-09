@@ -12,6 +12,7 @@ Kodla ilgili kısımlar hazırdır; aşağıdakiler **senin hesaplarınla ve kar
       (veri sorumlusu adı/unvanı, adres, iletişim e-postası, sunucu konumu, yedek saklama süresi)
 - [ ] Yasal metinleri bir avukata/KVKK danışmanına kontrol ettir (bu metinler şablondur, hukuki görüş değildir)
 - [ ] Ticari faaliyet olacaksa VERBİS kayıt yükümlülüğünü kontrol et
+- [ ] SMTP ayarlandı ve şifre sıfırlama e-postası gerçekten ulaşıyor; e-posta sağlayıcısı gizlilik metnine eklendi
 - [ ] Sunucu kuruldu ve `https://...` adresinden `/health` cevap veriyor (Bölüm 1)
 - [ ] Gizlilik politikası herkese açık bir URL'den erişilebiliyor (mağazalar zorunlu tutar, Bölüm 2)
 - [ ] Mobil derleme gerçek API adresiyle yapıldı (Bölüm 3)
@@ -39,6 +40,7 @@ platform kullanılabilir: **Render, Railway, Fly.io, DigitalOcean App Platform**
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` (ucuz). Google eski modelleri yeni hesaplara kapatabiliyor; güncel listeyi AI Studio'dan kontrol et |
 | `CORS_ORIGINS` | `https://localhost,capacitor://localhost,https://WEB-ALAN-ADIN` |
 | `AUTO_MIGRATE` | `True` (tek sunucu). Birden fazla örnekte `False` yapıp deploy adımında `alembic upgrade head` çalıştır |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Şifre sıfırlama e-postaları için SMTP bilgileri (Brevo, Resend, Amazon SES vb.). **Boşsa üretimde kod gönderilemez ve kullanıcılar şifresini sıfırlayamaz** |
 | `ASSISTANT_RATE_LIMIT` | Kullanıcı başına 10 dk'da en fazla asistan sorusu (varsayılan 30) |
 
 `https://localhost` Android uygulamasının, `capacitor://localhost` iOS uygulamasının kaynak adresidir; CORS'ta

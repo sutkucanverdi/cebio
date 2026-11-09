@@ -38,7 +38,7 @@ cebio/
 │   │   ├── services/            # Gemini ayrıştırıcılar, abonelik tespiti, analytics, AI asistan + araçları
 │   │   └── main.py
 │   ├── Dockerfile               # Production imajı (root olmayan kullanıcı, healthcheck)
-│   ├── tests/                   # pytest (86 test)
+│   ├── tests/                   # pytest (101 test)
 │   ├── requirements.txt
 │   └── .env.example
 ├── docker-compose.yml           # Postgres + API (production benzeri yerel ortam)
@@ -127,6 +127,7 @@ Swagger UI: `http://localhost:8000/docs` (sağ üstteki **Authorize** ile giriş
 |---|---|
 | `POST /api/v1/auth/register` | Hesap oluştur, token döner |
 | `POST /api/v1/auth/login` | E-posta + şifre ile giriş |
+| `POST /api/v1/auth/forgot-password` · `POST /api/v1/auth/reset-password` | E-postayla 6 haneli kod ile şifre sıfırlama |
 | `GET /api/v1/auth/me` | Oturumdaki kullanıcı |
 | `DELETE /api/v1/auth/me` | Hesabı ve tüm verileri sil (KVKK / App Store) |
 | `POST /api/v1/receipts/upload` | Fiş görseli yükle (JPEG/PNG/WEBP, en fazla `MAX_UPLOAD_MB`) |

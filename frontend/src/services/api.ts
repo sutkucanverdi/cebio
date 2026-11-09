@@ -62,6 +62,8 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
       const fieldMessages: Record<string, string> = {
         email: 'Lütfen geçerli bir e-posta adresi girin.',
         password: 'Şifre en az 8 karakter olmalı (en fazla 72 bayt).',
+        new_password: 'Şifre en az 8 karakter olmalı (en fazla 72 bayt).',
+        code: 'Kod 6 haneli olmalı.',
         full_name: 'Ad soyad çok uzun.',
         start_date: 'Başlangıç tarihi geçersiz.',
         end_date: 'Bitiş tarihi geçersiz.',
@@ -167,6 +169,14 @@ export async function register(email: string, password: string, fullName?: strin
 export async function login(email: string, password: string): Promise<TokenResponse> {
   const res = await apiClient.post<TokenResponse>('/api/v1/auth/login', { email, password });
   return res.data;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiClient.post('/api/v1/auth/forgot-password', { email });
+}
+
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+  await apiClient.post('/api/v1/auth/reset-password', { email, code, new_password: newPassword });
 }
 
 export async function getMe(): Promise<User> {

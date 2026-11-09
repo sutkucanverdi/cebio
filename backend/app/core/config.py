@@ -52,6 +52,20 @@ class Settings(BaseSettings):
     PREMIUM_STATEMENT_SCANS_PER_MONTH: int = 20
     PREMIUM_ASSISTANT_QUESTIONS_PER_MONTH: int = 300
 
+    # Şifre sıfırlama
+    PASSWORD_RESET_CODE_MINUTES: int = 15
+    PASSWORD_RESET_MAX_ATTEMPTS: int = 5
+    PASSWORD_RESET_REQUESTS_PER_WINDOW: int = 3
+    PASSWORD_RESET_WINDOW_SECONDS: int = 900
+
+    # E-posta (SMTP). SMTP_HOST boşsa DEBUG modunda kod sunucu çıktısına yazılır, e-posta gönderilmez.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SMTP_USE_SSL: bool = False
+
     # RevenueCat (Google Play / App Store abonelikleri) webhook doğrulama anahtarı
     REVENUECAT_WEBHOOK_SECRET: str = ""
 
