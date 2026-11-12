@@ -4,8 +4,8 @@
     {
       "name": "backend",
       "runtimeExecutable": "C:\\Users\\Utku\\cebio\\venv\\Scripts\\python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "backend", "--port", "8000"],
-      "port": 8000
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "backend", "--port", "8010"],
+      "port": 8010
     },
     {
       "name": "frontend",

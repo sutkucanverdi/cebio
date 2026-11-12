@@ -56,7 +56,21 @@ cebio/
 └── README.md
 ```
 
-## Kurulum
+## Hızlı başlangıç
+
+```bash
+npm run setup   # ilk seferde: venv, Python ve npm paketleri, backend/.env
+npm run dev     # backend + frontend birlikte (Windows'ta dev.bat'a çift tıklamak da olur)
+```
+
+- Uygulama: http://localhost:3000 · API: http://localhost:8010 (dokümantasyon `/docs`)
+- `Ctrl+C` ikisini birlikte kapatır. Port doluysa betik hangi portun dolu olduğunu söyler.
+- Farklı port için: `CEBIO_API_PORT` / `CEBIO_WEB_PORT`; tarayıcı açılmasın: `CEBIO_NO_BROWSER=1`
+- Tüm testler: `npm test`
+
+> Port 8000 bu bilgisayarda başka projelerce kullanıldığı için Cebio API'si yerelde 8010'da çalışır.
+
+## Kurulum (elle)
 
 ### Backend
 
@@ -77,7 +91,7 @@ Sunucuyu başlatın (açılışta Alembic migration'ları otomatik uygulanır):
 
 ```bash
 cd backend
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8010
 ```
 
 Migration'ları elle çalıştırmak için (`AUTO_MIGRATE=False` iken):
@@ -97,7 +111,7 @@ npm install
 npm run dev
 ```
 
-Varsayılan API adresi `http://localhost:8000`; değiştirmek için `VITE_API_BASE_URL` kullanın.
+Varsayılan API adresi `http://localhost:8010`; değiştirmek için `VITE_API_BASE_URL` kullanın.
 
 ### Testler
 
@@ -121,7 +135,7 @@ Mağaza derlemesi, imzalama ve sunucu kurulumu için: [YAYIN.md](YAYIN.md)
 
 ## API Özeti
 
-Swagger UI: `http://localhost:8000/docs` (sağ üstteki **Authorize** ile giriş yapılabilir).
+Swagger UI: `http://localhost:8010/docs` (sağ üstteki **Authorize** ile giriş yapılabilir).
 
 | Uç nokta | Açıklama |
 |---|---|
