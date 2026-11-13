@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.i18n import translate
 from app.core.rate_limit import RateLimiter
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.receipt import Receipt
@@ -17,6 +18,7 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     MessageResponse,
+    PreferencesUpdate,
     ResetPasswordRequest,
     TokenResponse,
     UserCreate,
@@ -73,6 +75,8 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> TokenRespons
         full_name=(payload.full_name or "").strip() or None,
         terms_version=settings.TERMS_VERSION,
         terms_accepted_at=datetime.now(timezone.utc),
+        ai_consent_at=datetime.now(timezone.utc) if payload.ai_consent else None,
+        locale=payload.locale,
     )
     db.add(user)
     db.flush()
@@ -123,19 +127,40 @@ def forgot_password(
     # Limit yalnızca var olan hesaplar için tutulur; rastgele adreslerle bellek şişirilemez
     if user is not None and reset_request_limiter.allow(user.id):
         code = create_reset_code(db, user)
-        background_tasks.add_task(send_reset_email, user.email, code)
-    return MessageResponse(message="Bu e-posta adresi kayıtlıysa sıfırlama kodu gönderildi.")
+        background_tasks.add_task(send_reset_email, user.email, code, user.locale)
+    return MessageResponse(message=translate("Bu e-posta adresi kayıtlıysa sıfırlama kodu gönderildi."))
 
 
 @router.post("/reset-password", response_model=MessageResponse, summary="Kodla yeni şifre belirle")
 def reset_password_endpoint(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> MessageResponse:
     if not reset_password(db, payload.email, payload.code, payload.new_password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Kod hatalı veya süresi dolmuş.")
-    return MessageResponse(message="Şifreniz değiştirildi. Yeni şifrenizle giriş yapabilirsiniz.")
+    return MessageResponse(message=translate("Şifreniz değiştirildi. Yeni şifrenizle giriş yapabilirsiniz."))
 
 
 @router.get("/me", response_model=UserResponse, summary="Giriş yapmış kullanıcının bilgileri")
 def me(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
+@router.patch("/me", response_model=UserResponse, summary="Ayarları güncelle (dil, yapay zeka izni, ad)")
+def update_me(
+    payload: PreferencesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    if payload.locale is not None:
+        current_user.locale = payload.locale
+    if payload.ai_consent is not None:
+        # Rıza her an geri alınabilir (KVKK m.5); geri alınınca yapay zeka özellikleri kapanır.
+        if payload.ai_consent and current_user.ai_consent_at is None:
+            current_user.ai_consent_at = datetime.now(timezone.utc)
+        elif not payload.ai_consent:
+            current_user.ai_consent_at = None
+    if "full_name" in payload.model_fields_set:
+        current_user.full_name = (payload.full_name or "").strip() or None
+    db.commit()
+    db.refresh(current_user)
     return current_user
 
 

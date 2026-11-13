@@ -82,8 +82,28 @@ def usage_for(db: Session, user: User, period: Optional[str] = None) -> Dict[str
     return used
 
 
+AI_CONSENT_MESSAGE = (
+    "Yapay zeka özelliklerini kullanmak için önce verilerinin yapay zeka servisine (Google Gemini) "
+    "aktarılmasına izin vermelisin."
+)
+
+
+def ensure_ai_consent(user: User) -> None:
+    """Kullanıcı yapay zeka aktarımına açık rıza vermediyse 403 döner (veri Gemini'ye HİÇ gönderilmez)."""
+    if user.ai_consent_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=AI_CONSENT_MESSAGE,
+            headers={"X-Cebio-Consent": "ai"},
+        )
+
+
 def ensure_quota(db: Session, user: User, feature: Feature) -> None:
-    """Limit dolmuşsa 402 (Payment Required) döner; mesaj kullanıcıya gösterilmeye uygundur."""
+    """Önce yapay zeka rızasını, sonra limiti kontrol eder.
+
+    Rıza yoksa 403, limit dolmuşsa 402 (Payment Required) döner; mesajlar kullanıcıya gösterilmeye uygundur.
+    """
+    ensure_ai_consent(user)
     limit = limits_for(user)[feature]
     used = usage_for(db, user)[feature]
     if used < limit:

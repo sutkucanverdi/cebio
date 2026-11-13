@@ -6,7 +6,12 @@ cevaplayan bir cüzdan denetçisidir.
 
 ## Özellikler
 
-- **Fişler:** fotoğraftan otomatik ayrıştırma, düzenleme, kategori grafiği, CSV/Excel dışa aktarma
+- **Türkçe / İngilizce:** arayüz, hata mesajları, raporlar, asistan cevapları, e-postalar ve yasal metinler
+- **Fişler:** fotoğraftan otomatik ayrıştırma veya yapay zeka olmadan elle ekleme, düzenleme, kategori grafiği,
+  CSV/Excel dışa aktarma (telefonda paylaşım menüsüyle)
+- **Kişisel enflasyon:** fişlerde tekrar alınan ürünlerin birim fiyat değişimi ve harcamayla ağırlıklı "senin sepetin" enflasyonu
+- **Yapay zeka izni:** fiş/ekstre/soru Google Gemini'ye yalnızca kullanıcı ayrı izin verirse gönderilir; Ayarlar'dan geri alınır.
+  Asistan cevapları uygulama içinden bildirilebilir
 - **Banka/kart ekstresi:** PDF/CSV/ekran görüntüsü ekstre içe aktarılır; işlemler kategorilere ayrılır,
   mükerrerler atlanır, fişi kayıtlı harcamalar eşleştirilip iki kez sayılmaz, içe aktarma geri alınabilir
 - **Aylık rapor:** geçen ayla karşılaştırma, kategori değişimleri, en büyük harcamalar, abonelik zamları,
@@ -20,7 +25,8 @@ cevaplayan bir cüzdan denetçisidir.
 - **AI asistan:** "Geçen ay ne kadar harcadım?", "Kahveye ne kadar veriyorum?" gibi soruları Gemini function
   calling ile kullanıcının gerçek verisinden cevaplar (yalnızca okuma araçları, kullanıcıya göre sınırlı, istek limiti)
 - **Mobil uygulama:** Capacitor ile Android ve iOS; telefonda abonelik yenileme ve deneme bitişi hatırlatıcıları
-- **KVKK:** gizlilik politikası, aydınlatma metni, kayıtta zorunlu açık rıza (sürümüyle birlikte kaydedilir), uygulama içinden hesap silme
+- **KVKK ve mağaza uyumu:** gizlilik politikası, koşullar, hesap silme ve destek sayfaları (TR/EN), iOS gizlilik manifesti,
+  uygulama içinden hesap silme — madde madde liste: [MAGAZA.md](MAGAZA.md)
 - **Ekstreden tespit:** banka/kart ekstresi (PDF, CSV, ekran görüntüsü) yüklenir; Gemini işlemleri okur,
   tekrarlayan ödemeler deterministik bir algoritmayla bulunur, kullanıcı onayladıklarını ekler
 
@@ -38,7 +44,7 @@ cebio/
 │   │   ├── services/            # Gemini ayrıştırıcılar, abonelik tespiti, analytics, AI asistan + araçları
 │   │   └── main.py
 │   ├── Dockerfile               # Production imajı (root olmayan kullanıcı, healthcheck)
-│   ├── tests/                   # pytest (101 test)
+│   ├── tests/                   # pytest
 │   ├── requirements.txt
 │   └── .env.example
 ├── docker-compose.yml           # Postgres + API (production benzeri yerel ortam)
@@ -142,9 +148,11 @@ Swagger UI: `http://localhost:8010/docs` (sağ üstteki **Authorize** ile giriş
 | `POST /api/v1/auth/register` | Hesap oluştur, token döner |
 | `POST /api/v1/auth/login` | E-posta + şifre ile giriş |
 | `POST /api/v1/auth/forgot-password` · `POST /api/v1/auth/reset-password` | E-postayla 6 haneli kod ile şifre sıfırlama |
-| `GET /api/v1/auth/me` | Oturumdaki kullanıcı |
+| `GET /api/v1/auth/me` · `PATCH /api/v1/auth/me` | Oturumdaki kullanıcı / dil, yapay zeka izni, ad güncelleme |
 | `DELETE /api/v1/auth/me` | Hesabı ve tüm verileri sil (KVKK / App Store) |
 | `POST /api/v1/receipts/upload` | Fiş görseli yükle (JPEG/PNG/WEBP, en fazla `MAX_UPLOAD_MB`) |
+| `POST /api/v1/receipts` | Fişi elle ekle (yapay zeka kullanmaz) |
+| `GET /api/v1/receipts/price-watch` · `GET /api/v1/receipts/price-history?q=` | Kişisel enflasyon / ürün fiyat geçmişi |
 | `GET /api/v1/receipts` | Listele: `merchant`, `category`, `start_date`, `end_date` |
 | `GET /api/v1/receipts/summary` | Toplam + kategori kırılımı: `merchant`, `start_date`, `end_date` |
 | `GET/PUT/DELETE /api/v1/receipts/{id}` | Tekil fiş işlemleri |
@@ -164,5 +172,8 @@ Swagger UI: `http://localhost:8010/docs` (sağ üstteki **Authorize** ile giriş
 | `GET /api/v1/reports/months` | Harcaması olan aylar |
 | `GET /api/v1/billing/status` | Plan ve bu ayki kullanım / limitler |
 | `POST /api/v1/assistant/chat` | AI asistana soru sor (son 20 mesaj; kullanıcı başına istek limiti) |
+| `POST /api/v1/assistant/report` | Uygunsuz/hatalı yapay zeka cevabını bildir |
+
+Tüm uç noktalar `Accept-Language: tr|en` başlığına göre hata mesajlarını ve rapor metinlerini o dilde döner.
 
 Fiş, abonelik, bütçe ve asistan uç noktalarının hepsi `Authorization: Bearer <token>` başlığı ister ve yalnızca kullanıcının kendi kayıtlarını döner.

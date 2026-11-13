@@ -1,3 +1,4 @@
+import { getLocaleTag } from '../i18n';
 import type { Receipt, ReceiptItem } from '../services/api';
 
 /** Gemini'nin fiş ürünlerine atadığı kategoriler (backend SYSTEM_PROMPT ile aynı liste). */
@@ -27,33 +28,51 @@ export const SPENDING_CATEGORIES = [
   'Diğer',
 ];
 
-const currencyFormatter = new Intl.NumberFormat('tr-TR', {
-  style: 'currency',
-  currency: 'TRY',
-  minimumFractionDigits: 2,
-});
-
-const numberFormatter = new Intl.NumberFormat('tr-TR', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+// Biçimlendiriciler dile göre önbelleğe alınır (dil değişince yenisi oluşturulur)
+const formatters = new Map<string, Intl.NumberFormat>();
+function nf(kind: 'currency' | 'number'): Intl.NumberFormat {
+  const key = `${getLocaleTag()}:${kind}`;
+  let fmt = formatters.get(key);
+  if (!fmt) {
+    fmt =
+      kind === 'currency'
+        ? new Intl.NumberFormat(getLocaleTag(), { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 })
+        : new Intl.NumberFormat(getLocaleTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    formatters.set(key, fmt);
+  }
+  return fmt;
+}
 
 export function formatCurrency(value: number): string {
-  return currencyFormatter.format(value || 0);
+  return nf('currency').format(value || 0);
 }
 
 export function formatNumberTr(value: number): string {
-  return numberFormatter.format(value || 0);
+  return nf('number').format(value || 0);
+}
+
+/** 45 -> "%45" (tr) / "45%" (en); ondalık en fazla 1 hane. */
+export function formatPercent(value: number, digits = 0): string {
+  const n = new Intl.NumberFormat(getLocaleTag(), { maximumFractionDigits: digits }).format(value);
+  return getLocaleTag() === 'tr-TR' ? `%${n}` : `${n}%`;
+}
+
+/** 2026-11-01 tarihli Date -> "Kasım 2026" / "November 2026" */
+export function monthLabel(d: Date): string {
+  const text = d.toLocaleDateString(getLocaleTag(), { month: 'long', year: 'numeric' });
+  return text.charAt(0).toLocaleUpperCase(getLocaleTag()) + text.slice(1);
 }
 
 export function formatQuantity(qty: number): string {
   if (!qty || qty <= 0) return '1';
-  return Number.isInteger(qty) ? String(qty) : qty.toLocaleString('tr-TR');
+  return Number.isInteger(qty) ? String(qty) : qty.toLocaleString(getLocaleTag());
 }
 
+/** YYYY-MM-DD -> 13.11.2026 (tr) / 11/13/2026 (en). Saat dilimi kaymasın diye elle biçimlenir. */
 export function formatDateTr(isoDate: string): string {
   const [y, m, d] = isoDate.split('-');
-  return y && m && d ? `${d}.${m}.${y}` : isoDate;
+  if (!(y && m && d)) return isoDate;
+  return getLocaleTag() === 'en-US' ? `${m}/${d.slice(0, 2)}/${y}` : `${d.slice(0, 2)}.${m}.${y}`;
 }
 
 export function safeQuantity(qty: number | null | undefined): number {

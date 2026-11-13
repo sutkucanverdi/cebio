@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, FileBarChart, TrendingDown, TrendingUp } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatPercent } from '../lib/format';
 import { getTrend, TrendPoint } from '../services/api';
 import { CARD_SURFACE_CLASS } from './ui';
 
-const oneDecimal = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 });
+import { getLocaleTag, t } from '../i18n';
+const oneDecimal = () => new Intl.NumberFormat(getLocaleTag(), { maximumFractionDigits: 1 });
 
 /** Eksen etiketi: 6000 -> "₺6 bin", 1500000 -> "₺1,5 mn" ("B" milyar sanılmasın diye açık yazılır). */
 function axisLabel(v: number): string {
-  if (v >= 1_000_000) return `₺${oneDecimal.format(v / 1_000_000)} mn`;
-  if (v >= 1_000) return `₺${oneDecimal.format(v / 1_000)} bin`;
-  return `₺${oneDecimal.format(v)}`;
+  if (v >= 1_000_000) return `₺${oneDecimal().format(v / 1_000_000)} ${t('mn')}`;
+  if (v >= 1_000) return `₺${oneDecimal().format(v / 1_000)}${t(' bin')}`;
+  return `₺${oneDecimal().format(v)}`;
 }
 
 interface TrendChartProps {
@@ -56,9 +57,9 @@ export function TrendChart({ darkMode, reloadKey, onOpenReport }: TrendChartProp
         <div>
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-indigo-500" />
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Aylık Harcama Trendi</h2>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t("Aylık Harcama Trendi")}</h2>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Son 6 ay • fişler + banka/kart</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{t("Son 6 ay • fişler + banka/kart")}</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
         <button
@@ -66,8 +67,7 @@ export function TrendChart({ darkMode, reloadKey, onOpenReport }: TrendChartProp
           onClick={onOpenReport}
           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition"
         >
-          <FileBarChart className="w-3.5 h-3.5" /> Aylık rapor
-        </button>
+          <FileBarChart className="w-3.5 h-3.5" />{' '}{t("Aylık rapor")}</button>
         {change !== null && (
           <span
             className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${
@@ -75,24 +75,19 @@ export function TrendChart({ darkMode, reloadKey, onOpenReport }: TrendChartProp
                 ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400'
                 : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
             }`}
-            title="Bu ayın şu ana kadarki toplamı, geçen ayın tamamına göre"
+            title={t("Bu ayın şu ana kadarki toplamı, geçen ayın tamamına göre")}
           >
             {change > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             {change > 0 ? '+' : ''}
-            {change.toFixed(0)}% geçen aya göre
-          </span>
+            {formatPercent(Math.round(change))}{t(" geçen aya göre")}</span>
         )}
         </div>
       </div>
 
       {failed ? (
-        <p className="flex-1 min-h-[220px] flex items-center justify-center text-xs text-slate-400">
-          Trend verisi yüklenemedi.
-        </p>
+        <p className="flex-1 min-h-[220px] flex items-center justify-center text-xs text-slate-400">{t("Trend verisi yüklenemedi.")}</p>
       ) : !hasData ? (
-        <p className="flex-1 min-h-[220px] flex items-center justify-center text-center text-xs text-slate-400">
-          Fiş veya ekstre ekledikçe aylık harcama grafiğiniz burada oluşacak.
-        </p>
+        <p className="flex-1 min-h-[220px] flex items-center justify-center text-center text-xs text-slate-400">{t("Fiş veya ekstre ekledikçe aylık harcama grafiğiniz burada oluşacak.")}</p>
       ) : (
         <div className="h-[230px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -118,7 +113,7 @@ export function TrendChart({ darkMode, reloadKey, onOpenReport }: TrendChartProp
                 formatter={(value: number, name: string) => [formatCurrency(value), name]}
                 labelFormatter={(label: string, payload) => {
                   const p = payload?.[0]?.payload as TrendPoint | undefined;
-                  return p ? `${label} • toplam ${formatCurrency(p.total)}` : label;
+                  return p ? t('{0} • toplam {1}', { 0: label, 1: formatCurrency(p.total) }) : label;
                 }}
               />
               <Legend
@@ -129,8 +124,8 @@ export function TrendChart({ darkMode, reloadKey, onOpenReport }: TrendChartProp
                 iconSize={8}
                 formatter={(value: string) => <span className="text-[11px] text-slate-500 dark:text-slate-400">{value}</span>}
               />
-              <Bar dataKey="receipts_total" name="Fişler" stackId="s" fill="#10b981" maxBarSize={44} />
-              <Bar dataKey="bank_total" name="Banka/Kart" stackId="s" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={44} />
+              <Bar dataKey="receipts_total" name={t("Fişler")} stackId="s" fill="#10b981" maxBarSize={44} />
+              <Bar dataKey="bank_total" name={t("Banka/Kart")} stackId="s" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={44} />
             </BarChart>
           </ResponsiveContainer>
         </div>

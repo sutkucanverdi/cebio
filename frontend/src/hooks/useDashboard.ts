@@ -8,6 +8,7 @@ import {
   ReceiptSummary,
 } from '../services/api';
 
+import { t } from '../i18n';
 const EMPTY_SUMMARY: ReceiptSummary = { total_receipts: 0, total_amount: 0, category_breakdown: [] };
 
 export interface DashboardFilters {
@@ -52,7 +53,7 @@ export function useDashboard(filters: DashboardFilters) {
       setError(null);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
-      setError(getApiErrorMessage(err, 'Veriler alınırken bir hata oluştu.'));
+      setError(getApiErrorMessage(err, t("Veriler alınırken bir hata oluştu.")));
     } finally {
       if (requestId === requestIdRef.current) setIsLoading(false);
     }

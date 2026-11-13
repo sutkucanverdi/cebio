@@ -100,3 +100,38 @@ class ReceiptSummaryResponse(BaseModel):
         default_factory=list,
         description="Kategori bazlı harcama dağılımı",
     )
+
+
+# --- Kişisel enflasyon / fiyat takibi ---
+
+class PricePoint(BaseModel):
+    date: dt.date
+    merchant: str
+    name: str
+    unit_price: Money
+
+
+class PriceHistoryResponse(BaseModel):
+    query: str
+    points: List[PricePoint]
+    first_price: Optional[Money] = None
+    last_price: Optional[Money] = None
+    change_pct: Optional[float] = None
+
+
+class PriceWatchItem(BaseModel):
+    name: str
+    purchases: int
+    first_date: dt.date
+    first_price: Money
+    last_date: dt.date
+    last_price: Money
+    change_pct: float
+    total_spent: Money
+
+
+class PriceWatchResponse(BaseModel):
+    since: dt.date
+    tracked_items: int
+    basket_change_pct: Optional[float] = None
+    items: List[PriceWatchItem]

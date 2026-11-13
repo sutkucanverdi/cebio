@@ -1,7 +1,8 @@
 import { DragEvent, useRef, useState } from 'react';
-import { Camera, FolderOpen, Sparkles, UploadCloud } from 'lucide-react';
+import { Camera, FolderOpen, PencilLine, Sparkles, UploadCloud } from 'lucide-react';
 import { CARD_SURFACE_CLASS } from './ui';
 
+import { t } from '../i18n';
 const VALID_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const VALID_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
 export const MAX_UPLOAD_MB = 10;
@@ -12,10 +13,10 @@ export function validateReceiptFile(file: File): string | null {
   const dot = file.name.lastIndexOf('.');
   const ext = dot !== -1 ? file.name.toLowerCase().slice(dot) : '';
   if (!VALID_TYPES.includes(type) && !VALID_EXTS.includes(ext)) {
-    return 'Lütfen geçerli bir fiş görseli (.jpg, .jpeg, .png, .webp) seçin.';
+    return t("Lütfen geçerli bir fiş görseli (.jpg, .jpeg, .png, .webp) seçin.");
   }
   if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-    return `Dosya çok büyük. En fazla ${MAX_UPLOAD_MB} MB yükleyebilirsiniz.`;
+    return t("Dosya çok büyük. En fazla {0} MB yükleyebilirsiniz.", { 0: MAX_UPLOAD_MB });
   }
   return null;
 }
@@ -23,9 +24,11 @@ export function validateReceiptFile(file: File): string | null {
 interface UploadCardProps {
   isUploading: boolean;
   onFile: (file: File) => void;
+  /** Yapay zeka kullanmadan elle fiş ekle */
+  onManual: () => void;
 }
 
-export function UploadCard({ isUploading, onFile }: UploadCardProps) {
+export function UploadCard({ isUploading, onFile, onManual }: UploadCardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -48,16 +51,11 @@ export function UploadCard({ isUploading, onFile }: UploadCardProps) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-emerald-500" />
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Hızlı Fiş Yükleme</h2>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t("Hızlı Fiş Yükleme")}</h2>
           </div>
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            JPEG • PNG • WEBP • {MAX_UPLOAD_MB} MB
-          </span>
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t("JPEG • PNG • WEBP •")}{' '}{MAX_UPLOAD_MB}{' '}{t("MB")}</span>
         </div>
-        <p className="text-xs text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
-          Fiş veya fatura fotoğrafını sürükleyip bırakın. Gemini AI mağaza adını, tarihi ve tüm ürünleri
-          adetleriyle birlikte otomatik olarak ayrıştırır.
-        </p>
+        <p className="text-xs text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">{t("Fiş veya fatura fotoğrafını sürükleyip bırakın. Yapay zeka (Google Gemini) mağaza adını, tarihi ve tüm ürünleri adetleriyle birlikte otomatik olarak ayrıştırır.")}</p>
       </div>
 
       <input
@@ -79,7 +77,7 @@ export function UploadCard({ isUploading, onFile }: UploadCardProps) {
       <div
         role="button"
         tabIndex={0}
-        aria-label="Fiş görseli seç veya sürükle bırak"
+        aria-label={t("Fiş görseli seç veya sürükle bırak")}
         onKeyDown={(e) => {
           if ((e.key === 'Enter' || e.key === ' ') && !isUploading) fileInputRef.current?.click();
         }}
@@ -113,10 +111,8 @@ export function UploadCard({ isUploading, onFile }: UploadCardProps) {
             <UploadCloud className="w-6 h-6" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Fiş fotoğrafını buraya sürükleyin</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Maksimum netlik için fişin tamamının görünür olduğundan emin olun
-            </p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t("Fiş fotoğrafını buraya sürükleyin")}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t("Maksimum netlik için fişin tamamının görünür olduğundan emin olun")}</p>
           </div>
         </div>
       </div>
@@ -129,7 +125,7 @@ export function UploadCard({ isUploading, onFile }: UploadCardProps) {
           className="py-2.5 px-4 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           <FolderOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>Dosya Seçin</span>
+          <span>{t("Dosya Seçin")}</span>
         </button>
         <button
           type="button"
@@ -138,9 +134,18 @@ export function UploadCard({ isUploading, onFile }: UploadCardProps) {
           className="py-2.5 px-4 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-600 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           <Camera className="w-4 h-4 shrink-0" />
-          <span>Kamerayla Çek</span>
+          <span>{t("Kamerayla Çek")}</span>
         </button>
       </div>
+      <button
+        type="button"
+        onClick={onManual}
+        disabled={isUploading}
+        className="mt-3 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 disabled:opacity-50"
+      >
+        <PencilLine className="w-3.5 h-3.5" />
+        {t('Yapay zeka olmadan elle ekle')}
+      </button>
     </div>
   );
 }

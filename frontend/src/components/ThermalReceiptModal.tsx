@@ -16,9 +16,11 @@ import {
   Receipt,
   ReceiptItemUpdatePayload,
   updateReceipt,
+  createReceipt,
 } from '../services/api';
 import { formatCurrency, formatQuantity, RECEIPT_CATEGORIES as DEFAULT_CATEGORIES } from '../lib/format';
 
+import { categoryLabel, t } from '../i18n';
 interface ThermalReceiptModalProps {
   isOpen: boolean;
   isAnalyzing: boolean;
@@ -186,16 +188,16 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
   const handleSave = async () => {
     if (!receipt) return;
     if (!merchant.trim()) {
-      setError('Mağaza adı boş bırakılamaz.');
+      setError(t("Mağaza adı boş bırakılamaz."));
       return;
     }
     if (!date.trim()) {
-      setError('Fiş tarihi boş bırakılamaz.');
+      setError(t("Fiş tarihi boş bırakılamaz."));
       return;
     }
     const invalidItem = items.find((i) => !i.name.trim() || !i.category.trim());
     if (invalidItem) {
-      setError('Lütfen tüm ürünlerin adını girin.');
+      setError(t("Lütfen tüm ürünlerin adını girin."));
       return;
     }
 
@@ -214,15 +216,17 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
         };
       });
 
-      const updated = await updateReceipt(receipt.id, {
+      const payload = {
         merchant: merchant.trim(),
         date: date.trim(),
         total_amount: Number(totalAmount),
         items: normalizedItems,
-      });
+      };
+      // id 0: elle eklenen yeni fiş
+      const updated = receipt.id === 0 ? await createReceipt(payload) : await updateReceipt(receipt.id, payload);
       onSaved(updated);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Fiş kaydedilirken bir hata oluştu.'));
+      setError(getApiErrorMessage(err, t("Fiş kaydedilirken bir hata oluştu.")));
     } finally {
       setIsSaving(false);
     }
@@ -259,10 +263,10 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
               {isAnalyzing
                 ? 'AI OKUYOR...'
                 : isEditing
-                ? 'DÜZENLEME MODU'
+                ? t("DÜZENLEME MODU")
                 : step < 3
-                ? 'FİŞ BASILIYOR...'
-                : 'TERMAL FİŞ ÖZETİ'}
+                ? t("FİŞ BASILIYOR...")
+                : t("TERMAL FİŞ ÖZETİ")}
             </span>
           </div>
 
@@ -271,7 +275,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
             onClick={onClose}
             disabled={isAnalyzing || isSaving}
             className="text-slate-400 hover:text-white transition disabled:opacity-40"
-            title="Kapat"
+            title={t("Kapat")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -290,12 +294,8 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                   <Loader2 className="w-6 h-6 text-slate-700 animate-spin" />
                 </div>
                 <div className="space-y-1.5">
-                  <p className="text-xs font-bold tracking-widest uppercase text-slate-800">
-                    FİŞ GÖRSELİ ÇÖZÜMLENİYOR
-                  </p>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Gereksiz adres, vergi ve POS detayları eleniyor; ürünler ve fiyatlar çıkarılıyor...
-                  </p>
+                  <p className="text-xs font-bold tracking-widest uppercase text-slate-800">{t("FİŞ GÖRSELİ ÇÖZÜMLENİYOR")}</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">{t("Gereksiz adres, vergi ve POS detayları eleniyor; ürünler ve fiyatlar çıkarılıyor...")}</p>
                 </div>
                 <div className="w-full pt-2 space-y-2 opacity-60">
                   <div className="h-2 bg-slate-300/80 rounded animate-pulse w-2/3 mx-auto" />
@@ -320,7 +320,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                   <div className="animate-thermal-line text-center space-y-1.5 pb-3 border-b border-dashed border-slate-400">
                     <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-slate-500">
                       <Sparkles className="w-3 h-3 text-emerald-600" />
-                      <span>CEBİO OTONOM FİŞ ÖZETİ</span>
+                      <span>{t("CEBİO OTONOM FİŞ ÖZETİ")}</span>
                     </div>
 
                     {isEditing ? (
@@ -329,11 +329,11 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                           type="text"
                           value={merchant}
                           onChange={(e) => setMerchant(e.target.value)}
-                          placeholder="MAĞAZA ADI"
+                          placeholder={t("MAĞAZA ADI")}
                           className="w-full text-center text-sm font-extrabold uppercase tracking-tight text-slate-900 bg-white/80 border border-dashed border-slate-400 rounded-md px-2 py-1 focus:outline-none focus:border-emerald-600 focus:bg-white"
                         />
                         <div className="flex items-center justify-center gap-1.5">
-                          <span className="text-[10px] font-bold text-slate-500">TARİH:</span>
+                          <span className="text-[10px] font-bold text-slate-500">{t("TARİH:")}</span>
                           <input
                             type="date"
                             value={date}
@@ -347,8 +347,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                         <h3 className="text-base font-extrabold tracking-tight text-slate-900 uppercase break-words pt-0.5">
                           {receipt.merchant}
                         </h3>
-                        <p className="text-[11px] font-semibold text-slate-600">
-                          TARİH: {receipt.date}
+                        <p className="text-[11px] font-semibold text-slate-600">{t("TARİH:")}{' '}{receipt.date}
                         </p>
                       </>
                     )}
@@ -359,8 +358,8 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                 {step >= 2 && (
                   <div className="space-y-2 py-1">
                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-dotted border-slate-300 pb-1">
-                      <span>{isEditing ? 'ADET / ÜRÜN / KATEGORİ' : 'ÜRÜN DETAYI'}</span>
-                      <span>TUTAR</span>
+                      <span>{isEditing ? t("ADET / ÜRÜN / KATEGORİ") : t("ÜRÜN DETAYI")}</span>
+                      <span>{t("TUTAR")}</span>
                     </div>
 
                     {isEditing ? (
@@ -383,18 +382,16 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                                     handleItemChange(idx, 'quantity', e.target.value)
                                   }
                                   className="w-11 text-center text-xs font-bold text-slate-900 bg-white/90 border border-dashed border-slate-400 rounded px-1 py-1 focus:outline-none focus:border-emerald-600"
-                                  title="Adet"
+                                  title={t("Adet")}
                                 />
-                                <span className="text-[11px] font-bold text-slate-500 ml-0.5">
-                                  x
-                                </span>
+                                <span className="text-[11px] font-bold text-slate-500 ml-0.5">{t("x")}</span>
                               </div>
 
                               {/* Ürün Adı Input */}
                               <input
                                 type="text"
                                 value={item.name}
-                                placeholder="Ürün adı..."
+                                placeholder={t("Ürün adı...")}
                                 onChange={(e) =>
                                   handleItemChange(idx, 'name', e.target.value)
                                 }
@@ -412,7 +409,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                                     handleItemChange(idx, 'price', e.target.value)
                                   }
                                   className="w-full text-right text-xs font-bold text-slate-900 bg-white/90 border border-dashed border-slate-400 rounded pl-1.5 pr-4 py-1 focus:outline-none focus:border-emerald-600"
-                                  title="Satır Tutarı (₺)"
+                                  title={t("Satır Tutarı (₺)")}
                                 />
                                 <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 pointer-events-none">
                                   ₺
@@ -424,7 +421,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                                 type="button"
                                 onClick={() => handleRemoveItem(idx)}
                                 className="p-1 rounded text-rose-600 hover:bg-rose-500/15 transition shrink-0"
-                                title="Ürünü Sil"
+                                title={t("Ürünü Sil")}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -441,18 +438,17 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                               >
                                 {!DEFAULT_CATEGORIES.includes(item.category) &&
                                   item.category && (
-                                    <option value={item.category}>{item.category}</option>
+                                    <option value={item.category}>{categoryLabel(item.category)}</option>
                                   )}
                                 {DEFAULT_CATEGORIES.map((cat) => (
                                   <option key={cat} value={cat}>
-                                    {cat}
+                                    {categoryLabel(cat)}
                                   </option>
                                 ))}
                               </select>
 
                               {item.quantity > 1 && (
-                                <span className="text-[10px] text-slate-500">
-                                  Birim: {formatCurrency(item.unit_price ?? item.price / item.quantity)}
+                                <span className="text-[10px] text-slate-500">{t("Birim:")}{' '}{formatCurrency(item.unit_price ?? item.price / item.quantity)}
                                 </span>
                               )}
                             </div>
@@ -466,7 +462,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                           className="w-full py-1.5 rounded-lg border border-dashed border-slate-400 hover:border-emerald-600 hover:bg-emerald-500/5 text-[11px] font-bold uppercase tracking-wider text-slate-700 hover:text-emerald-700 flex items-center justify-center gap-1 transition"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>+ Ürün Ekle</span>
+                          <span>{t("+ Ürün Ekle")}</span>
                         </button>
                       </div>
                     ) : (
@@ -481,8 +477,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                             <div className="flex items-baseline justify-between gap-2 text-slate-900">
                               <span className="font-semibold leading-snug break-words">
                                 <span className="font-bold text-slate-700">
-                                  {formatQuantity(qty)}x
-                                </span>{' '}
+                                  {formatQuantity(qty)}{t("x")}</span>{' '}
                                 {item.name}
                               </span>
                               <span className="flex-1 border-b border-dotted border-slate-400/70 min-w-[16px]" />
@@ -491,9 +486,9 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-[10px] text-slate-500 mt-0.5">
-                              <span>[{item.category}]</span>
+                              <span>[{categoryLabel(item.category)}]</span>
                               {qty > 1 && item.unit_price ? (
-                                <span>Birim: {formatCurrency(item.unit_price)}</span>
+                                <span>{t("Birim:")}{' '}{formatCurrency(item.unit_price)}</span>
                               ) : null}
                             </div>
                           </div>
@@ -507,9 +502,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                 {step >= 3 && (
                   <div className="animate-thermal-line pt-2">
                     <div className="border-t-2 border-b-2 border-double border-slate-800 py-2.5 flex items-center justify-between gap-3">
-                      <span className="text-sm font-black tracking-wider uppercase text-slate-900">
-                        TOPLAM TUTAR
-                      </span>
+                      <span className="text-sm font-black tracking-wider uppercase text-slate-900">{t("TOPLAM TUTAR")}</span>
 
                       {isEditing ? (
                         <div className="relative w-28">
@@ -533,8 +526,8 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                     </div>
                     <p className="text-center text-[10px] text-slate-500 mt-3 tracking-widest uppercase">
                       {isEditing
-                        ? '*** DEĞİŞİKLİKLERİ KAYDETMEYİ UNUTMAYIN ***'
-                        : '*** HARCAMA KAYDEDİLDİ ***'}
+                        ? t("*** DEĞİŞİKLİKLERİ KAYDETMEYİ UNUTMAYIN ***")
+                        : t("*** HARCAMA KAYDEDİLDİ ***")}
                     </p>
                   </div>
                 )}
@@ -558,7 +551,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                   className="py-2.5 px-4 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 bg-white/95 hover:bg-white text-slate-800 border border-slate-300 shadow-lg disabled:opacity-50 transition"
                 >
                   <X className="w-4 h-4 text-slate-600" />
-                  <span>Vazgeç</span>
+                  <span>{t("Vazgeç")}</span>
                 </button>
 
                 <button
@@ -572,7 +565,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                   ) : (
                     <Save className="w-4 h-4" />
                   )}
-                  <span>Değişiklikleri Kaydet</span>
+                  <span>{t("Değişiklikleri Kaydet")}</span>
                 </button>
               </>
             ) : (
@@ -586,7 +579,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                   className="py-2.5 px-4 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 bg-white/95 hover:bg-white text-slate-800 border border-slate-300 shadow-lg transition"
                 >
                   <Edit3 className="w-4 h-4 text-indigo-600" />
-                  <span>Düzenle</span>
+                  <span>{t("Düzenle")}</span>
                 </button>
 
                 <button
@@ -595,7 +588,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                   className="py-2.5 px-4 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25 transition"
                 >
                   <Check className="w-4 h-4 stroke-[2.5]" />
-                  <span>Kapat / Onayla</span>
+                  <span>{t("Kapat / Onayla")}</span>
                 </button>
               </>
             )}

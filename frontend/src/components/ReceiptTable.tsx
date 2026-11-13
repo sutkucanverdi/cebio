@@ -30,6 +30,7 @@ import {
 } from '../lib/format';
 import { CARD_SURFACE_CLASS } from './ui';
 
+import { categoryLabel, t } from '../i18n';
 const FIELD_CLASS =
   'py-1.5 rounded-lg text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300/80 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500';
 
@@ -75,27 +76,23 @@ export function ReceiptTable({
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <FileText className="w-4 h-4 text-emerald-500" />
-              Son Fişler ve Harcama Ürünleri
-            </h2>
+              <FileText className="w-4 h-4 text-emerald-500" />{t("Son Fişler ve Harcama Ürünleri")}</h2>
             {categoryFilter && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                 <Filter className="w-3 h-3" />
-                <span>Kategori: {categoryFilter}</span>
+                <span>{t("Kategori:")}{' '}{categoryFilter}</span>
                 <button
                   type="button"
                   onClick={() => onFiltersChange({ category: '' })}
                   className="hover:text-emerald-950 dark:hover:text-white"
-                  aria-label="Kategori filtresini kaldır"
+                  aria-label={t("Kategori filtresini kaldır")}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Bir fiş satırına tıklayarak ürünleri inceleyebilir veya "Düzenle" ile termal fiş üzerinde güncelleyebilirsiniz.
-          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{t("Bir fiş satırına tıklayarak ürünleri inceleyebilir veya \"Düzenle\" ile termal fiş üzerinde güncelleyebilirsiniz.")}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -103,8 +100,8 @@ export function ReceiptTable({
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="search"
-              placeholder="Mağaza ara (Örn: Migros)..."
-              aria-label="Mağaza ara"
+              placeholder={t("Mağaza ara (Örn: Migros)...")}
+              aria-label={t("Mağaza ara")}
               value={filters.merchant}
               onChange={(e) => onFiltersChange({ merchant: e.target.value })}
               className={`${FIELD_CLASS} pl-8 pr-3`}
@@ -119,7 +116,7 @@ export function ReceiptTable({
               max={filters.endDate || undefined}
               onChange={(e) => onFiltersChange({ startDate: e.target.value })}
               className={`${FIELD_CLASS} px-2.5`}
-              aria-label="Başlangıç tarihi"
+              aria-label={t("Başlangıç tarihi")}
             />
             <span className="text-slate-400">—</span>
             <input
@@ -128,7 +125,7 @@ export function ReceiptTable({
               min={filters.startDate || undefined}
               onChange={(e) => onFiltersChange({ endDate: e.target.value })}
               className={`${FIELD_CLASS} px-2.5`}
-              aria-label="Bitiş tarihi"
+              aria-label={t("Bitiş tarihi")}
             />
           </div>
 
@@ -139,7 +136,7 @@ export function ReceiptTable({
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition"
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Filtreyi Temizle</span>
+              <span>{t("Filtreyi Temizle")}</span>
             </button>
           )}
 
@@ -148,10 +145,10 @@ export function ReceiptTable({
             onClick={onExportCsv}
             disabled={isEmpty}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-700 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition"
-            title="Filtrelenmiş fişleri CSV olarak indir"
+            title={t("Filtrelenmiş fişleri CSV olarak indir")}
           >
             <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>CSV İndir</span>
+            <span>{t("CSV İndir")}</span>
           </button>
 
           <button
@@ -159,10 +156,10 @@ export function ReceiptTable({
             onClick={onExportExcel}
             disabled={isEmpty || isExporting}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition"
-            title="Filtrelenmiş fişleri Excel (.xlsx) olarak indir"
+            title={t("Filtrelenmiş fişleri Excel (.xlsx) olarak indir")}
           >
             {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
-            <span>Excel İndir</span>
+            <span>{t("Excel İndir")}</span>
           </button>
         </div>
       </div>
@@ -170,7 +167,7 @@ export function ReceiptTable({
       {isLoading && isEmpty ? (
         <div className="p-12 flex flex-col items-center justify-center gap-2 text-slate-400">
           <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-          <span className="text-xs">Fiş kayıtları yükleniyor...</span>
+          <span className="text-xs">{t("Fiş kayıtları yükleniyor...")}</span>
         </div>
       ) : isEmpty ? (
         <EmptyState hasActiveFilters={hasActiveFilters} onClearFilters={onClearFilters} />
@@ -179,11 +176,11 @@ export function ReceiptTable({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50">
-                <th className="py-3.5 px-6">Mağaza / İşletme</th>
-                <th className="py-3.5 px-4">Fiş Tarihi</th>
-                <th className="py-3.5 px-4">Ürün Sayısı</th>
-                <th className="py-3.5 px-4">Toplam Tutar</th>
-                <th className="py-3.5 px-6 text-right">İşlem</th>
+                <th className="py-3.5 px-6">{t("Mağaza / İşletme")}</th>
+                <th className="py-3.5 px-4">{t("Fiş Tarihi")}</th>
+                <th className="py-3.5 px-4">{t("Ürün Sayısı")}</th>
+                <th className="py-3.5 px-4">{t("Toplam Tutar")}</th>
+                <th className="py-3.5 px-6 text-right">{t("İşlem")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800/70 text-sm">
@@ -214,12 +211,12 @@ function EmptyState({ hasActiveFilters, onClearFilters }: { hasActiveFilters: bo
         {hasActiveFilters ? <Search className="w-6 h-6" /> : <ReceiptIcon className="w-6 h-6" />}
       </div>
       <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-        {hasActiveFilters ? 'Kriterlere uygun fiş bulunamadı' : 'Henüz kayıtlı fiş bulunmuyor'}
+        {hasActiveFilters ? t("Kriterlere uygun fiş bulunamadı") : t("Henüz kayıtlı fiş bulunmuyor")}
       </p>
       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md">
         {hasActiveFilters
-          ? 'Aradığınız mağaza adına, seçili kategoriye veya tarih aralığına ait bir harcama kaydı eşleşmedi.'
-          : 'Yukarıdaki yükleme alanından yeni bir fiş fotoğrafı yükleyerek veya kamerayla çekerek başlayabilirsiniz.'}
+          ? t("Aradığınız mağaza adına, seçili kategoriye veya tarih aralığına ait bir harcama kaydı eşleşmedi.")
+          : t("Yukarıdaki yükleme alanından yeni bir fiş fotoğrafı yükleyerek veya kamerayla çekerek başlayabilirsiniz.")}
       </p>
       {hasActiveFilters && (
         <button
@@ -228,7 +225,7 @@ function EmptyState({ hasActiveFilters, onClearFilters }: { hasActiveFilters: bo
           className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm transition"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Filtreyi Temizle</span>
+          <span>{t("Filtreyi Temizle")}</span>
         </button>
       )}
     </div>
@@ -267,7 +264,7 @@ function ReceiptRow({ receipt, categoryFilter, isExpanded, isDeleting, onToggle,
             )}
             <span>{receipt.merchant}</span>
             {mismatch !== 0 && (
-              <span title="Kalemlerin toplamı fiş toplamıyla uyuşmuyor">
+              <span title={t("Kalemlerin toplamı fiş toplamıyla uyuşmuyor")}>
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               </span>
             )}
@@ -276,8 +273,7 @@ function ReceiptRow({ receipt, categoryFilter, isExpanded, isDeleting, onToggle,
         <td className="py-4 px-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">{formatDateTr(receipt.date)}</td>
         <td className="py-4 px-4">
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap">
-            {formatQuantity(totalQty)} ürün
-          </span>
+            {formatQuantity(totalQty)}{' '}{t("ürün")}</span>
         </td>
         <td className="py-4 px-4 font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
           {formatCurrency(receipt.total_amount)}
@@ -286,7 +282,7 @@ function ReceiptRow({ receipt, categoryFilter, isExpanded, isDeleting, onToggle,
           <div className="inline-flex items-center justify-end gap-1.5">
             {confirming ? (
               <>
-                <span className="text-xs text-slate-500 dark:text-slate-400 mr-1 whitespace-nowrap">Silinsin mi?</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 mr-1 whitespace-nowrap">{t("Silinsin mi?")}</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -294,16 +290,12 @@ function ReceiptRow({ receipt, categoryFilter, isExpanded, isDeleting, onToggle,
                     onDelete();
                   }}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 transition"
-                >
-                  Evet, sil
-                </button>
+                >{t("Evet, sil")}</button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                >
-                  Vazgeç
-                </button>
+                >{t("Vazgeç")}</button>
               </>
             ) : (
               <>
@@ -311,20 +303,20 @@ function ReceiptRow({ receipt, categoryFilter, isExpanded, isDeleting, onToggle,
                   type="button"
                   onClick={onEdit}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 transition"
-                  title="Termal Fiş Üzerinde Düzenle"
+                  title={t("Termal Fiş Üzerinde Düzenle")}
                 >
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>Düzenle</span>
+                  <span>{t("Düzenle")}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(true)}
                   disabled={isDeleting}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-500 hover:bg-rose-500/10 disabled:opacity-50 transition"
-                  title="Fişi Sil"
+                  title={t("Fişi Sil")}
                 >
                   {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                  <span>Sil</span>
+                  <span>{t("Sil")}</span>
                 </button>
               </>
             )}
@@ -339,9 +331,9 @@ function ReceiptRow({ receipt, categoryFilter, isExpanded, isDeleting, onToggle,
               <div className="mb-3 flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>
-                  Kalemlerin toplamı fiş toplamından {formatCurrency(Math.abs(mismatch))}{' '}
-                  {mismatch > 0 ? 'eksik' : 'fazla'}. Yapay zeka bir satırı kaçırmış olabilir; "Düzenle" ile
-                  kontrol edin.
+                  {mismatch > 0
+                    ? t('Kalemlerin toplamı fiş toplamından {0} eksik. Yapay zeka bir satırı kaçırmış olabilir; "Düzenle" ile kontrol edin.', { 0: formatCurrency(Math.abs(mismatch)) })
+                    : t('Kalemlerin toplamı fiş toplamından {0} fazla. Yapay zeka bir satırı kaçırmış olabilir; "Düzenle" ile kontrol edin.', { 0: formatCurrency(Math.abs(mismatch)) })}
                 </span>
               </div>
             )}
@@ -363,12 +355,12 @@ function ReceiptRow({ receipt, categoryFilter, isExpanded, isDeleting, onToggle,
                         <p className="font-medium text-slate-800 dark:text-slate-100 truncate">{item.name}</p>
                         {qty > 1 && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 text-[11px] font-medium text-slate-600 dark:text-slate-300 shrink-0">
-                            ({formatQuantity(qty)}x {formatNumberTr(getUnitPrice(item))} ₺)
+                            ({formatQuantity(qty)}{t("x")}{' '}{formatNumberTr(getUnitPrice(item))} ₺)
                           </span>
                         )}
                       </div>
                       <span className="inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                        {item.category}
+                        {categoryLabel(item.category)}
                       </span>
                     </div>
                     <span className="font-semibold text-slate-900 dark:text-white shrink-0">{formatCurrency(item.price)}</span>

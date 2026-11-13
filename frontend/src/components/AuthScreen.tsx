@@ -1,9 +1,12 @@
 import { FormEvent, useState } from 'react';
-import { AlertCircle, CheckCircle2, Loader2, Wallet } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Globe, Loader2, Wallet } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { getApiErrorMessage } from '../services/api';
 import { ForgotPasswordFlow } from './ForgotPasswordFlow';
 
+import { Lang, LANGUAGES, t, useI18n } from '../i18n';
+import type { LegalDoc } from '../lib/legal';
+import { LegalLink, LegalModal } from './LegalModal';
 type Mode = 'login' | 'register';
 
 const INPUT_CLASS =
@@ -16,6 +19,9 @@ export function AuthScreen() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
+  const [legal, setLegal] = useState<LegalDoc | null>(null);
+  const { lang, setLang } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isForgot, setIsForgot] = useState(false);
@@ -27,23 +33,23 @@ export function AuthScreen() {
     e.preventDefault();
     setError(null);
     if (isRegister && password.length < 8) {
-      setError('Şifre en az 8 karakter olmalı.');
+      setError(t("Şifre en az 8 karakter olmalı."));
       return;
     }
     if (isRegister && !acceptTerms) {
-      setError('Devam etmek için kullanım koşullarını ve gizlilik metnini onaylamanız gerekiyor.');
+      setError(t("Devam etmek için kullanım koşullarını ve gizlilik politikasını onaylamanız gerekiyor."));
       return;
     }
     setIsSubmitting(true);
     try {
       if (isRegister) {
-        await register(email.trim(), password, fullName.trim() || undefined);
+        await register(email.trim(), password, fullName.trim() || undefined, aiConsent);
       } else {
         await login(email.trim(), password);
       }
     } catch (err) {
       setError(
-        getApiErrorMessage(err, isRegister ? 'Hesap oluşturulamadı.' : 'Giriş yapılamadı.')
+        getApiErrorMessage(err, isRegister ? t("Hesap oluşturulamadı.") : t("Giriş yapılamadı."))
       );
     } finally {
       setIsSubmitting(false);
@@ -57,10 +63,8 @@ export function AuthScreen() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <Wallet className="w-7 h-7 text-white" />
           </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Cebio</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Fişlerini tara, harcamalarını yapay zekayla takip et.
-          </p>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{t("Cebio")}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("Fişlerini tara, harcamalarını yapay zekayla takip et.")}</p>
         </div>
 
         {notice && !isForgot && (
@@ -80,7 +84,7 @@ export function AuthScreen() {
               setMode('login');
               setError(null);
               setIsForgot(false);
-              setNotice('Şifren değiştirildi. Yeni şifrenle giriş yapabilirsin.');
+              setNotice(t("Şifren değiştirildi. Yeni şifrenle giriş yapabilirsin."));
             }}
           />
         ) : (
@@ -103,14 +107,14 @@ export function AuthScreen() {
                     : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
-                {m === 'login' ? 'Giriş Yap' : 'Hesap Oluştur'}
+                {m === 'login' ? t("Giriş Yap") : t("Hesap Oluştur")}
               </button>
             ))}
           </div>
 
           {isRegister && (
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Ad Soyad (isteğe bağlı)</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Ad Soyad (isteğe bağlı)")}</span>
               <input
                 type="text"
                 autoComplete="name"
@@ -122,7 +126,7 @@ export function AuthScreen() {
           )}
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">E-posta</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("E-posta")}</span>
             <input
               type="email"
               required
@@ -135,7 +139,7 @@ export function AuthScreen() {
           </label>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Şifre</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Şifre")}</span>
             <input
               type="password"
               required
@@ -146,7 +150,7 @@ export function AuthScreen() {
               className={INPUT_CLASS}
             />
             {isRegister && (
-              <span className="block text-[11px] text-slate-400">En az 8 karakter</span>
+              <span className="block text-[11px] text-slate-400">{t("En az 8 karakter")}</span>
             )}
             {!isRegister && (
               <button
@@ -157,32 +161,40 @@ export function AuthScreen() {
                   setIsForgot(true);
                 }}
                 className="block ml-auto text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
-              >
-                Şifremi unuttum
-              </button>
+              >{t("Şifremi unuttum")}</button>
             )}
           </label>
 
           {isRegister && (
-            <label className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              <input
-                type="checkbox"
-                checked={acceptTerms}
-                onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="mt-0.5 w-4 h-4 accent-emerald-600 shrink-0"
-              />
-              <span>
-                <a href="/kullanim-kosullari.html" target="_blank" rel="noopener" className="font-semibold text-emerald-700 dark:text-emerald-400 underline">
-                  Kullanım Koşulları
-                </a>
-                'nı ve{' '}
-                <a href="/gizlilik.html" target="_blank" rel="noopener" className="font-semibold text-emerald-700 dark:text-emerald-400 underline">
-                  Gizlilik Politikası / KVKK Aydınlatma Metni
-                </a>
-                'ni okudum. Fiş, ekstre ve sorularımın analiz için yurt dışındaki yapay zeka servisine (Google Gemini)
-                aktarılmasına açık rıza veriyorum.
-              </span>
-            </label>
+            <div className="space-y-3">
+              <label className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-emerald-600 shrink-0"
+                />
+                <span>
+                  {t('Şunları okudum ve kabul ediyorum:')}{' '}
+                  <LegalLink doc="terms" onOpen={setLegal}>{t('Kullanım Koşulları')}</LegalLink>
+                  {', '}
+                  <LegalLink doc="privacy" onOpen={setLegal}>{t('Gizlilik Politikası ve KVKK Aydınlatma Metni')}</LegalLink>
+                  {' '}<span className="text-rose-500">*</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                <input
+                  type="checkbox"
+                  checked={aiConsent}
+                  onChange={(e) => setAiConsent(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-emerald-600 shrink-0"
+                />
+                <span>
+                  <strong>{t('(İsteğe bağlı)')}</strong>{' '}
+                  {t('Fiş fotoğraflarımın, ekstrelerimin ve asistana sorduğum soruların analiz için yurt dışındaki yapay zeka servisine (Google Gemini) aktarılmasına açık rıza veriyorum. Daha sonra Ayarlar’dan geri alabilirim.')}
+                </span>
+              </label>
+            </div>
           )}
 
           {error && (
@@ -198,17 +210,36 @@ export function AuthScreen() {
             className="w-full py-2.5 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 shadow-sm disabled:opacity-60 transition"
           >
             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isRegister ? 'Hesap Oluştur' : 'Giriş Yap'}
+            {isRegister ? t("Hesap Oluştur") : t("Giriş Yap")}
           </button>
         </form>
         )}
 
-        <p className="mt-4 text-center text-[11px] text-slate-400">
-          <a href="/gizlilik.html" target="_blank" rel="noopener" className="hover:underline">Gizlilik</a>
-          {' • '}
-          <a href="/kullanim-kosullari.html" target="_blank" rel="noopener" className="hover:underline">Kullanım Koşulları</a>
-        </p>
+        <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+          <LegalLink doc="privacy" onOpen={setLegal} className="hover:underline">{t('Gizlilik')}</LegalLink>
+          <span>•</span>
+          <LegalLink doc="terms" onOpen={setLegal} className="hover:underline">{t('Kullanım Koşulları')}</LegalLink>
+          <span>•</span>
+          <LegalLink doc="support" onOpen={setLegal} className="hover:underline">{t('Destek')}</LegalLink>
+          <span>•</span>
+          <label className="inline-flex items-center gap-1">
+            <Globe className="w-3 h-3" />
+            <select
+              aria-label={t('Dil')}
+              value={lang}
+              onChange={(e) => setLang(e.target.value as Lang)}
+              className="bg-transparent hover:underline focus:outline-none cursor-pointer"
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
+      {legal && <LegalModal doc={legal} onClose={() => setLegal(null)} />}
     </div>
   );
 }

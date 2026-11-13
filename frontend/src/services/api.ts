@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { getLang, t } from '../i18n';
 import { storageGet, storageSet } from '../lib/storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8010';
@@ -31,6 +32,8 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Sunucu hata mesajlarını, raporları ve asistan cevaplarını bu dilde üretir
+  config.headers['Accept-Language'] = getLang();
   return config;
 });
 
@@ -42,6 +45,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !isAuthCall) {
       setStoredToken(null);
       unauthorizedHandler?.();
+    }
+    if (error.response?.status === 403 && error.response.headers?.['x-cebio-consent'] === 'ai') {
+      window.dispatchEvent(new CustomEvent(AI_CONSENT_EVENT));
     }
     if (error.response?.status === 402) {
       const detail = (error.response.data as { detail?: string } | undefined)?.detail;
@@ -60,18 +66,21 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
       // FastAPI/Pydantic doğrulama hataları İngilizce gelir; alana göre Türkçe mesaj gösterilir.
       const field = String(detail[0]?.loc?.[detail[0].loc.length - 1] ?? '');
       const fieldMessages: Record<string, string> = {
-        email: 'Lütfen geçerli bir e-posta adresi girin.',
-        password: 'Şifre en az 8 karakter olmalı (en fazla 72 bayt).',
-        new_password: 'Şifre en az 8 karakter olmalı (en fazla 72 bayt).',
-        code: 'Kod 6 haneli olmalı.',
-        full_name: 'Ad soyad çok uzun.',
-        start_date: 'Başlangıç tarihi geçersiz.',
-        end_date: 'Bitiş tarihi geçersiz.',
+        email: t('Lütfen geçerli bir e-posta adresi girin.'),
+        password: t('Şifre en az 8 karakter olmalı (en fazla 72 bayt).'),
+        new_password: t('Şifre en az 8 karakter olmalı (en fazla 72 bayt).'),
+        code: t('Kod 6 haneli olmalı.'),
+        full_name: t('Ad soyad çok uzun.'),
+        start_date: t('Başlangıç tarihi geçersiz.'),
+        end_date: t('Bitiş tarihi geçersiz.'),
+        merchant: t('Mağaza adı geçersiz.'),
+        total_amount: t('Tutar geçersiz.'),
+        price: t('Tutar geçersiz.'),
       };
-      return fieldMessages[field] ?? 'Girilen bilgiler geçersiz. Lütfen kontrol edip tekrar deneyin.';
+      return fieldMessages[field] ?? t('Girilen bilgiler geçersiz. Lütfen kontrol edip tekrar deneyin.');
     }
-    if (err.code === 'ECONNABORTED') return 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.';
-    if (!err.response) return 'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.';
+    if (err.code === 'ECONNABORTED') return t('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
+    if (!err.response) return t('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.');
   }
   return fallback;
 }
@@ -83,6 +92,10 @@ export interface User {
   email: string;
   full_name: string | null;
   created_at: string;
+  terms_version?: string | null;
+  /** Yapay zeka aktarımına açık rıza zamanı; null ise yapay zeka özellikleri kapalı */
+  ai_consent_at?: string | null;
+  locale?: 'tr' | 'en';
 }
 
 export interface TokenResponse {
@@ -155,15 +168,33 @@ function cleanParams(params: ReceiptFilters | undefined, keys: (keyof ReceiptFil
 
 // --- Auth uç noktaları ---
 
-export async function register(email: string, password: string, fullName?: string): Promise<TokenResponse> {
+export async function register(
+  email: string,
+  password: string,
+  fullName?: string,
+  aiConsent = false
+): Promise<TokenResponse> {
   const res = await apiClient.post<TokenResponse>('/api/v1/auth/register', {
     email,
     password,
     full_name: fullName || null,
     // Kayıt ekranındaki zorunlu onay kutusu işaretlenmeden bu fonksiyon çağrılmaz.
     accept_terms: true,
+    // Yapay zeka aktarımı için AYRI ve isteğe bağlı açık rıza
+    ai_consent: aiConsent,
+    locale: getLang(),
   });
   return res.data;
+}
+
+export interface PreferencesPayload {
+  locale?: 'tr' | 'en';
+  ai_consent?: boolean;
+  full_name?: string | null;
+}
+
+export async function updateMe(payload: PreferencesPayload): Promise<User> {
+  return (await apiClient.patch<User>('/api/v1/auth/me', payload)).data;
 }
 
 export async function login(email: string, password: string): Promise<TokenResponse> {
@@ -223,6 +254,54 @@ export async function updateReceipt(id: number, payload: ReceiptUpdatePayload): 
 /** DELETE /api/v1/receipts/{id} */
 export async function deleteReceipt(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/receipts/${id}`);
+}
+
+/** POST /api/v1/receipts — fişi elle ekle (yapay zeka kullanmaz). */
+export async function createReceipt(payload: ReceiptUpdatePayload): Promise<Receipt> {
+  return (await apiClient.post<Receipt>('/api/v1/receipts', payload)).data;
+}
+
+// --- Kişisel enflasyon / fiyat takibi ---
+
+export interface PriceWatchItem {
+  name: string;
+  purchases: number;
+  first_date: string;
+  first_price: number;
+  last_date: string;
+  last_price: number;
+  change_pct: number;
+  total_spent: number;
+}
+
+export interface PriceWatch {
+  since: string;
+  tracked_items: number;
+  basket_change_pct: number | null;
+  items: PriceWatchItem[];
+}
+
+export interface PricePoint {
+  date: string;
+  merchant: string;
+  name: string;
+  unit_price: number;
+}
+
+export interface PriceHistory {
+  query: string;
+  points: PricePoint[];
+  first_price: number | null;
+  last_price: number | null;
+  change_pct: number | null;
+}
+
+export async function getPriceWatch(months = 12): Promise<PriceWatch> {
+  return (await apiClient.get<PriceWatch>('/api/v1/receipts/price-watch', { params: { months } })).data;
+}
+
+export async function getPriceHistory(q: string): Promise<PriceHistory> {
+  return (await apiClient.get<PriceHistory>('/api/v1/receipts/price-history', { params: { q } })).data;
 }
 
 // --- Abonelikler ---
@@ -409,6 +488,18 @@ export async function sendChat(messages: ChatMessage[]): Promise<ChatResponse> {
   return (await apiClient.post<ChatResponse>('/api/v1/assistant/chat', { messages })).data;
 }
 
+export type AIReportReason = 'offensive' | 'wrong' | 'harmful' | 'other';
+
+/** Uygunsuz/yanlış yapay zeka cevabını bildir (Google Play Yapay Zeka İçeriği politikası). */
+export async function reportAiReply(reason: AIReportReason, content: string, note?: string): Promise<string> {
+  const res = await apiClient.post<{ message: string }>('/api/v1/assistant/report', {
+    reason,
+    content: content.slice(0, 4000),
+    note: note?.trim() || null,
+  });
+  return res.data.message;
+}
+
 // --- Banka / kart ekstresi içe aktarma ---
 
 export interface StatementRow {
@@ -515,6 +606,8 @@ export async function getPlanStatus(): Promise<PlanStatus> {
 
 /** Plan limiti dolunca (HTTP 402) uygulamanın her yerinden "Planımı gör" uyarısı gösterebilmek için olay. */
 export const LIMIT_EVENT = 'cebio:limit-reached';
+/** Yapay zeka özelliği rıza olmadan çağrıldığında (403) yayınlanır; rıza penceresi açılır. */
+export const AI_CONSENT_EVENT = 'cebio:ai-consent-required';
 
 // --- Aylık rapor ---
 
