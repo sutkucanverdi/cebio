@@ -88,7 +88,7 @@ def reset_password(db: Session, email: str, code: str, new_password: str) -> boo
     return True
 
 
-def send_reset_email(to: str, code: str) -> None:
+def send_reset_email(to: str, code: str, locale: str = "tr") -> None:
     """Arka planda çalışır; hata fırlatmaz ki kullanıcıya hesabın var olup olmadığı belli olmasın."""
     if not email_service.is_configured():
         if settings.DEBUG:

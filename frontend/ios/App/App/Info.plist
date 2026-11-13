@@ -5,7 +5,20 @@
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
+	<string>tr</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>tr</string>
+		<string>en</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Cebio, fişlerinin fotoğrafını çekip harcamalarını kaydetmek için kameranı kullanır. / Cebio uses the camera to photograph your receipts and record your spending.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cebio, galerinden seçtiğin fiş fotoğrafını okumak için fotoğraflarına erişir. / Cebio accesses your photos to read the receipt image you choose.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Cebio, dışa aktardığın dosyaları kaydedebilmek için izin ister. / Cebio asks permission to save files you export.</string>
 	<key>CFBundleDisplayName</key>
         <string>Cebio</string>
 	<key>CFBundleExecutable</key>
@@ -49,7 +62,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

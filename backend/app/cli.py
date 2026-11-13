@@ -3,6 +3,7 @@
     python -m app.cli grant-premium kisi@ornek.com --days 30      # promosyon / test için premium ver
     python -m app.cli revoke-premium kisi@ornek.com               # premium'u kaldır
     python -m app.cli plan kisi@ornek.com                          # plan ve bu ayki kullanımı göster
+    python -m app.cli ai-reports --limit 20                        # bildirilen yapay zeka cevapları (moderasyon)
 
 backend/ klasöründen çalıştırın. Hangi veritabanına bağlanılacağı DATABASE_URL ile belirlenir.
 """
@@ -14,6 +15,7 @@ from sqlalchemy import select
 
 from app.core.database import SessionLocal
 from app.core.migrations import run_migrations
+from app.models.ai_report import AIReport
 from app.models.user import User
 from app.services.billing import grant_premium, plan_status
 
@@ -40,8 +42,23 @@ def main(argv: list[str] | None = None) -> None:
     show = sub.add_parser("plan", help="Plan ve kullanım durumunu göster")
     show.add_argument("email")
 
+    reports = sub.add_parser("ai-reports", help="Kullanıcıların bildirdiği yapay zeka cevaplarını listele")
+    reports.add_argument("--limit", type=int, default=20)
+
     args = parser.parse_args(argv)
     run_migrations()
+
+    if args.command == "ai-reports":
+        with SessionLocal() as db:
+            rows = db.scalars(select(AIReport).order_by(AIReport.id.desc()).limit(args.limit)).all()
+            if not rows:
+                print("Bildirilmiş yapay zeka cevabı yok.")
+            for r in rows:
+                print(f"#{r.id} {r.created_at:%Y-%m-%d %H:%M} kullanıcı={r.user_id} sebep={r.reason}")
+                if r.note:
+                    print(f"   not: {r.note}")
+                print("   " + " ".join(r.content[:300].split()))
+        return
 
     with SessionLocal() as db:
         user = _user(db, args.email)

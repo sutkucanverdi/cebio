@@ -4,6 +4,7 @@ import type { ReceiptSummary } from '../services/api';
 import { formatCurrency, formatQuantity } from '../lib/format';
 import { CARD_SURFACE_CLASS } from './ui';
 
+import { categoryLabel, t } from '../i18n';
 interface StatCardProps {
   label: string;
   value: string;
@@ -34,26 +35,26 @@ export function StatCards({ summary, isFiltered }: { summary: ReceiptSummary; is
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
       <StatCard
-        label="Toplam Harcama Tutarı"
+        label={t("Toplam Harcama Tutarı")}
         value={formatCurrency(summary.total_amount)}
-        hint={isFiltered ? 'Seçili mağaza / tarih filtresine göre' : 'Tüm kayıtlı fişlerin genel toplamı'}
+        hint={isFiltered ? t("Seçili mağaza / tarih filtresine göre") : t("Tüm kayıtlı fişlerin genel toplamı")}
         Icon={Wallet}
         accent="text-emerald-600 dark:text-emerald-500 dark:bg-emerald-500/10"
       />
       <StatCard
-        label="Kaydedilen Fiş Sayısı"
+        label={t("Kaydedilen Fiş Sayısı")}
         value={String(summary.total_receipts)}
-        hint="AI tarafından ayrıştırılan belge"
+        hint={t("Fişler ve elle eklenen harcamalar")}
         Icon={ReceiptIcon}
         accent="text-indigo-600 dark:text-indigo-500 dark:bg-indigo-500/10"
       />
       <StatCard
-        label="Lider Harcama Kategorisi"
-        value={top ? top.category : '—'}
+        label={t("Lider Harcama Kategorisi")}
+        value={top ? categoryLabel(top.category) : '—'}
         hint={
           top
-            ? `${formatCurrency(top.total_amount)} (${formatQuantity(top.item_count)} ürün)`
-            : 'Henüz kategori verisi yok'
+            ? t("{0} ({1} ürün)", { 0: formatCurrency(top.total_amount), 1: formatQuantity(top.item_count) })
+            : t("Henüz kategori verisi yok")
         }
         Icon={TrendingUp}
         accent="text-amber-600 dark:text-amber-500 dark:bg-amber-500/10"

@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.i18n import category_label, get_locale
 from app.models.receipt import Receipt
 from app.models.subscription import Subscription, SubscriptionPriceChange
 from app.models.transaction import Transaction
@@ -45,8 +46,22 @@ def default_report_month(today: dt.date) -> MonthRange:
     return previous_month(month_range(today.year, today.month))
 
 
-def full_label(rng: MonthRange) -> str:
-    return f"{TR_MONTHS_FULL[rng.start.month - 1]} {rng.start.year}"
+EN_MONTHS_FULL = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+
+
+def full_label(rng: MonthRange, locale: str = "tr") -> str:
+    months = EN_MONTHS_FULL if locale == "en" else TR_MONTHS_FULL
+    return f"{months[rng.start.month - 1]} {rng.start.year}"
+
+
+def amount_en(value: Decimal) -> str:
+    """1234.5 -> '1,234.50 TRY' (İngilizce rapor cümleleri için)."""
+    q = money(value)
+    sign = "-" if q < 0 else ""
+    return f"{sign}{abs(q):,.2f} TRY"
 
 
 def tl(value: Decimal) -> str:
@@ -150,8 +165,10 @@ def _category_rows(current: List[dict], previous: List[dict]) -> List[dict]:
     return rows
 
 
-def build_insights(report: dict) -> List[str]:
-    """Raporu kısa, önem sırasına göre Türkçe cümlelere çevirir."""
+def build_insights(report: dict, locale: str = "tr") -> List[str]:
+    """Raporu kısa, önem sırasına göre cümlelere çevirir (tr / en)."""
+    if locale == "en":
+        return build_insights_en(report)
     total: Decimal = report["total"]
     prev: Decimal = report["previous_total"]
     label = report["label"]
@@ -217,7 +234,77 @@ def build_insights(report: dict) -> List[str]:
     return out
 
 
-def monthly_report(db: Session, user_id: int, rng: MonthRange, today: dt.date) -> dict:
+def build_insights_en(report: dict) -> List[str]:
+    total: Decimal = report["total"]
+    prev: Decimal = report["previous_total"]
+    label = report["label"]
+    amt = amount_en
+    out: List[str] = []
+
+    if total <= 0:
+        out.append(f"No spending recorded for {label}. Scan a receipt or import a statement to get started.")
+        return out
+
+    change = report["change_pct"]
+    if change is not None:
+        diff = total - prev
+        if abs(change) < 3:
+            out.append(f"Your spending is about the same as last month: {amt(total)}.")
+        elif change > 0:
+            out.append(f"Your spending is up {pct_text(diff, prev)}% vs last month ({amt(prev)} → {amt(total)}).")
+        else:
+            out.append(
+                f"Your spending is down {pct_text(diff, prev)}% vs last month ({amt(prev)} → {amt(total)}). Nice work!"
+            )
+    else:
+        out.append(f"You spent {amt(total)} in {label}.")
+
+    cats = report["by_category"]
+    if cats:
+        top = cats[0]
+        out.append(
+            f"Your top category was {category_label(top['category'], 'en')}: {amt(top['total'])} "
+            f"({pct_text(top['total'], total)}% of the total)."
+        )
+        jumps = [
+            c
+            for c in cats
+            if c["previous_total"] > 0
+            and c["total"] - c["previous_total"] >= CATEGORY_JUMP_MIN_TL
+            and c["total"] >= c["previous_total"] * (1 + CATEGORY_JUMP_RATIO)
+        ]
+        if jumps:
+            biggest = max(jumps, key=lambda c: c["total"] - c["previous_total"])
+            out.append(
+                f"{category_label(biggest['category'], 'en')} spending rose "
+                f"{pct_text(biggest['total'] - biggest['previous_total'], biggest['previous_total'])}% "
+                f"({amt(biggest['previous_total'])} → {amt(biggest['total'])})."
+            )
+
+    for b in report["budgets"]:
+        name = category_label(b["category"], "en") if b["category"] else "Overall"
+        if b["state"] == "exceeded":
+            out.append(f"You went {amt(-b['remaining'])} over your {name} budget (limit {amt(b['monthly_limit'])}).")
+        elif b["state"] == "warning":
+            out.append(
+                f"You've used {pct_text(b['spent'], b['monthly_limit'])}% of your {name} budget — close to the limit."
+            )
+
+    for inc in report["subscriptions"]["price_increases"]:
+        out.append(f"{inc['name']} raised its price: {amt(inc['old_amount'])} → {amt(inc['new_amount'])}.")
+
+    fixed: Decimal = report["subscriptions"]["monthly_fixed_try"]
+    if fixed > 0:
+        out.append(
+            f"Your subscriptions cost {amt(fixed)} a month ({pct_text(fixed, total)}% of this month's spending)."
+        )
+    return out
+
+
+def monthly_report(
+    db: Session, user_id: int, rng: MonthRange, today: dt.date, locale: Optional[str] = None
+) -> dict:
+    locale = locale or get_locale()
     prev_rng = previous_month(rng)
     current = spending_summary(db, user_id, rng.start, rng.end)
     previous = spending_summary(db, user_id, prev_rng.start, prev_rng.end)
@@ -228,13 +315,13 @@ def monthly_report(db: Session, user_id: int, rng: MonthRange, today: dt.date) -
 
     report = {
         "month": rng.key,
-        "label": full_label(rng),
+        "label": full_label(rng, locale),
         "is_complete": today > rng.end,
         "total": total,
         "receipts_total": money(current["receipts_total"]),
         "bank_total": money(current["bank_total"]),
         "previous_month": prev_rng.key,
-        "previous_label": full_label(prev_rng),
+        "previous_label": full_label(prev_rng, locale),
         "previous_total": money(previous["total"]),
         "change_pct": pct_change(total, money(previous["total"])),
         "daily_average": money(total / days) if days > 0 else ZERO,
@@ -249,7 +336,7 @@ def monthly_report(db: Session, user_id: int, rng: MonthRange, today: dt.date) -
         "subscriptions": _subscription_section(db, user_id, rng),
         "budgets": budget_status(db, user_id, rng, today),
     }
-    report["insights"] = build_insights(report)
+    report["insights"] = build_insights(report, locale)
     return report
 
 

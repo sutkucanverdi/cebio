@@ -12,6 +12,22 @@ import { TrendChart } from './TrendChart';
 import { Notice } from './ui';
 import { UploadCard, validateReceiptFile } from './UploadCard';
 
+import { t } from '../i18n';
+import { todayIso } from '../lib/format';
+import { useAiConsent } from './AiConsent';
+import { PriceWatchCard } from './PriceWatchCard';
+
+/** Elle fiş ekleme için boş taslak (id 0 = henüz kaydedilmedi). */
+function emptyReceipt(): Receipt {
+  return {
+    id: 0,
+    merchant: '',
+    date: todayIso(),
+    total_amount: 0,
+    created_at: new Date().toISOString(),
+    items: [{ id: -1, receipt_id: 0, name: '', price: 0, quantity: 1, unit_price: null, category: 'Gıda' }],
+  };
+}
 interface ReceiptsViewProps {
   darkMode: boolean;
   /** Üst bardaki "Yenile" butonuna her basıldığında artar. */
@@ -57,12 +73,16 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
 
   const patchFilters = (patch: Partial<DashboardFilters>) => setFilters((prev) => ({ ...prev, ...patch }));
 
+  const ensureAiConsent = useAiConsent();
+
   const handleFileUpload = async (file: File) => {
     const invalid = validateReceiptFile(file);
     if (invalid) {
       setErrorMsg(invalid);
       return;
     }
+    // Fotoğraf Google Gemini'ye gönderilmeden önce açık rıza (App Store 5.1.2(i), KVKK)
+    if (!(await ensureAiConsent())) return;
 
     setIsUploading(true);
     setThermalReceipt(null);
@@ -78,7 +98,7 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
       await refresh();
     } catch (err) {
       setIsThermalOpen(false);
-      setErrorMsg(getApiErrorMessage(err, 'Fiş yüklenirken veya analiz edilirken bir hata oluştu.'));
+      setErrorMsg(getApiErrorMessage(err, t("Fiş yüklenirken veya analiz edilirken bir hata oluştu.")));
     } finally {
       setIsUploading(false);
     }
@@ -89,10 +109,10 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
     setErrorMsg(null);
     try {
       await deleteReceipt(receipt.id);
-      setSuccessMsg(`"${receipt.merchant}" fişi silindi.`);
+      setSuccessMsg(t("\"{0}\" fişi silindi.", { 0: receipt.merchant }));
       await refresh();
     } catch (err) {
-      setErrorMsg(getApiErrorMessage(err, 'Fiş silinirken bir hata oluştu.'));
+      setErrorMsg(getApiErrorMessage(err, t("Fiş silinirken bir hata oluştu.")));
     } finally {
       setDeletingId(null);
     }
@@ -103,7 +123,7 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
     try {
       await exportExcel(buildExportRows(receipts, filters.category));
     } catch {
-      setErrorMsg('Excel dosyası oluşturulamadı.');
+      setErrorMsg(t("Excel dosyası oluşturulamadı."));
     } finally {
       setIsExporting(false);
     }
@@ -119,9 +139,9 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
         onClose={() => {
           if (thermalReceipt && !thermalInitialEdit) {
             setSuccessMsg(
-              `"${thermalReceipt.merchant}" fişi onaylandı! (${formatQuantity(
+              t("\"{0}\" fişi onaylandı! ({1} ürün • {2})", { 0: thermalReceipt.merchant, 1: formatQuantity(
                 getReceiptTotalQuantity(thermalReceipt)
-              )} ürün • ${formatCurrency(thermalReceipt.total_amount)})`
+              ), 2: formatCurrency(thermalReceipt.total_amount) })
             );
           }
           setIsThermalOpen(false);
@@ -130,7 +150,7 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
           setThermalReceipt(updated);
           setIsThermalOpen(false);
           setExpandedId(updated.id);
-          setSuccessMsg(`"${updated.merchant}" fişi başarıyla güncellendi (${formatCurrency(updated.total_amount)}).`);
+          setSuccessMsg(t("\"{0}\" fişi başarıyla güncellendi ({1}).", { 0: updated.merchant, 1: formatCurrency(updated.total_amount) }));
           await refresh();
         }}
       />
@@ -146,7 +166,15 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <UploadCard isUploading={isUploading} onFile={(f) => void handleFileUpload(f)} />
+          <UploadCard
+            isUploading={isUploading}
+            onFile={(f) => void handleFileUpload(f)}
+            onManual={() => {
+              setThermalReceipt(emptyReceipt());
+              setThermalInitialEdit(true);
+              setIsThermalOpen(true);
+            }}
+          />
           <CategoryChart
             summary={summary}
             categoryFilter={filters.category}
@@ -154,6 +182,8 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
             onToggleCategory={(c) => patchFilters({ category: filters.category === c ? '' : c })}
           />
         </section>
+
+        <PriceWatchCard reloadKey={dataVersion} />
 
         <ReceiptTable
           receipts={receipts}
@@ -172,7 +202,9 @@ export function ReceiptsView({ darkMode, refreshSignal, onOpenReport }: Receipts
             setIsThermalOpen(true);
           }}
           onDelete={(receipt) => void handleDelete(receipt)}
-          onExportCsv={() => exportCsv(buildExportRows(receipts, filters.category))}
+          onExportCsv={() =>
+            exportCsv(buildExportRows(receipts, filters.category)).catch(() => setErrorMsg(t('CSV dosyası oluşturulamadı.')))
+          }
           onExportExcel={() => void handleExportExcel()}
         />
     </div>

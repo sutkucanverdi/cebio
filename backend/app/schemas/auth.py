@@ -36,8 +36,14 @@ class UserCreate(BaseModel):
     full_name: Optional[str] = Field(default=None, max_length=255)
     accept_terms: Literal[True] = Field(
         ...,
-        description="Kullanım koşulları, gizlilik politikası ve KVKK aydınlatma metni onayı (zorunlu)",
+        description="Kullanım koşulları ve gizlilik politikasını (KVKK aydınlatma metni) okuduğunun onayı (zorunlu)",
     )
+    ai_consent: bool = Field(
+        default=False,
+        description="Fiş/ekstre/soruların yapay zeka servisine (Google Gemini, yurt dışı) aktarılmasına açık rıza. "
+        "İsteğe bağlıdır; verilmezse yapay zeka özellikleri kapalı kalır.",
+    )
+    locale: Literal["tr", "en"] = "tr"
 
     @field_validator("password")
     @classmethod
@@ -56,6 +62,8 @@ class UserResponse(BaseModel):
     full_name: Optional[str] = None
     created_at: datetime
     terms_version: Optional[str] = None
+    ai_consent_at: Optional[datetime] = None
+    locale: str = "tr"
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,3 +72,11 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class PreferencesUpdate(BaseModel):
+    """Ayarlar: dil, yapay zeka açık rızası (verme / geri alma) ve ad soyad."""
+
+    locale: Optional[Literal["tr", "en"]] = None
+    ai_consent: Optional[bool] = None
+    full_name: Optional[str] = Field(default=None, max_length=255)

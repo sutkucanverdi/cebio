@@ -6,11 +6,15 @@ import {
   getStoredToken,
   login as apiLogin,
   onUnauthorized,
+  PreferencesPayload,
   register as apiRegister,
   setStoredToken,
   TokenResponse,
+  updateMe,
   User,
 } from '../services/api';
+import { getLang, onLangChange } from '../i18n';
+import { initPurchases, logoutPurchases } from '../lib/purchases';
 
 // offline: kayıtlı oturum var ama sunucuya ulaşılamıyor (tekrar deneniyor)
 type AuthStatus = 'loading' | 'offline' | 'authenticated' | 'anonymous';
@@ -19,8 +23,10 @@ interface AuthContextValue {
   status: AuthStatus;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName?: string) => Promise<void>;
+  register: (email: string, password: string, fullName?: string, aiConsent?: boolean) => Promise<void>;
   logout: () => void;
+  /** Dil, yapay zeka izni, ad soyad gibi ayarları sunucuya kaydeder. */
+  updatePreferences: (payload: PreferencesPayload) => Promise<User>;
   deleteAccount: () => Promise<void>;
 }
 
@@ -34,7 +40,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStoredToken(null);
     setUser(null);
     setStatus('anonymous');
+    void logoutPurchases();
   }, []);
+
+  // Mağaza aboneliği (RevenueCat) kullanıcıyı bizim ID'mizle tanısın
+  useEffect(() => {
+    if (user) initPurchases(user.id).catch(() => undefined);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dil değişince hesaba kaydet (e-postalar ve bildirimler bu dilde gelsin)
+  useEffect(
+    () =>
+      onLangChange((lang) => {
+        if (getStoredToken()) updateMe({ locale: lang }).then(setUser).catch(() => undefined);
+      }),
+    []
+  );
 
   // Herhangi bir istek 401 dönerse oturumu kapat
   useEffect(() => {
@@ -56,6 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .then((me) => {
           if (cancelled) return;
           setUser(me);
+          // Bu cihazda seçili dil hesaptakinden farklıysa hesabı güncelle
+          if (me.locale && me.locale !== getLang()) updateMe({ locale: getLang() }).then(setUser).catch(() => undefined);
           setStatus('authenticated');
         })
         .catch((err) => {
@@ -89,8 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       logout,
       login: async (email, password) => applyToken(await apiLogin(email, password)),
-      register: async (email, password, fullName) =>
-        applyToken(await apiRegister(email, password, fullName)),
+      register: async (email, password, fullName, aiConsent) =>
+        applyToken(await apiRegister(email, password, fullName, aiConsent)),
+      updatePreferences: async (payload) => {
+        const updated = await updateMe(payload);
+        setUser(updated);
+        return updated;
+      },
       deleteAccount: async () => {
         await apiDeleteAccount();
         logout();

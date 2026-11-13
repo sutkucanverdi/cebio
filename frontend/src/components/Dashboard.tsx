@@ -9,13 +9,16 @@ import { BankView } from './bank/BankView';
 import { Header } from './Header';
 import { MonthlyReportModal } from './MonthlyReportModal';
 import { PlanModal } from './PlanModal';
+import { SettingsModal } from './SettingsModal';
+import { AiConsentProvider } from './AiConsent';
 import { ReceiptsView } from './ReceiptsView';
 import { SubscriptionsView } from './subscriptions/SubscriptionsView';
 import { Notice } from './ui';
 
+import { t } from '../i18n';
+import { monthLabel } from '../lib/format';
 const THEME_KEY = 'cebio.theme';
 const REPORT_SEEN_KEY = 'cebio.reportSeen';
-const TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 // Ayın ilk bu kadar gününde "geçen ayın raporu hazır" uyarısı gösterilir
 const REPORT_BANNER_DAYS = 7;
 
@@ -23,10 +26,19 @@ function previousMonth(now = new Date()): { key: string; label: string } {
   const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   return {
     key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-    label: `${TR_MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+    label: monthLabel(d),
   };
 }
 const TAB_KEY = 'cebio.tab';
+
+let reopenSettings = false;
+/** Ayarlar'dan dil değiştirilince (ağaç yeniden kurulmadan hemen önce) çağrılır. */
+export function markSettingsReopen(): void {
+  reopenSettings = true;
+}
+function shouldReopenSettings(): boolean {
+  return reopenSettings;
+}
 
 type Tab = 'receipts' | 'bank' | 'subscriptions' | 'assistant';
 const VALID_TABS: Tab[] = ['receipts', 'bank', 'subscriptions', 'assistant'];
@@ -67,6 +79,12 @@ export function Dashboard() {
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [isPlanOpen, setIsPlanOpen] = useState(false);
+  // Dil değişince uygulama yeniden kurulur; Ayarlar penceresi açık kalsın
+  const [isSettingsOpen, setIsSettingsOpen] = useState(shouldReopenSettings);
+  // Bayrak, ilk çizimden sonra sıfırlanır (StrictMode başlangıç değerini iki kez hesaplar)
+  useEffect(() => {
+    reopenSettings = false;
+  }, []);
   const [reportMonth, setReportMonth] = useState<string | null | undefined>(null); // null: kapalı, undefined: son ay
   const [reportBanner, setReportBanner] = useState<{ key: string; label: string } | null>(null);
 
@@ -99,7 +117,7 @@ export function Dashboard() {
   useEffect(() => {
     const onLimit = (e: Event) => {
       const detail = (e as CustomEvent<string | undefined>).detail;
-      setLimitMessage(detail || 'Bu ayki kullanım limitinize ulaştınız.');
+      setLimitMessage(detail || t("Bu ayki kullanım limitinize ulaştınız."));
     };
     window.addEventListener(LIMIT_EVENT, onLimit);
     return () => window.removeEventListener(LIMIT_EVENT, onLimit);
@@ -111,17 +129,18 @@ export function Dashboard() {
 
   const handleDeleteAccount = async () => {
     const ok = window.confirm(
-      'Hesabınız, tüm fiş ve abonelik kayıtlarınız kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?'
+      t("Hesabınız, tüm fiş ve abonelik kayıtlarınız kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?")
     );
     if (!ok) return;
     try {
       await deleteAccount();
     } catch (err) {
-      setAccountError(getApiErrorMessage(err, 'Hesap silinirken bir hata oluştu.'));
+      setAccountError(getApiErrorMessage(err, t("Hesap silinirken bir hata oluştu.")));
     }
   };
 
   return (
+    <AiConsentProvider>
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Header
         user={user}
@@ -131,12 +150,13 @@ export function Dashboard() {
         onLogout={logout}
         onDeleteAccount={() => void handleDeleteAccount()}
         onOpenPlan={() => setIsPlanOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-safe space-y-6">
         <nav
           role="tablist"
-          aria-label="Bölümler"
+          aria-label={t("Bölümler")}
           className="inline-grid grid-cols-4 gap-1 p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-sm w-full sm:w-auto"
         >
           {TABS.map(({ id, label, short, Icon }) => {
@@ -155,33 +175,39 @@ export function Dashboard() {
                 }`}
               >
                 <Icon className="w-4 h-4 hidden sm:block" />
-                <span className="sm:hidden">{short}</span>
-                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{t(short)}</span>
+                <span className="hidden sm:inline">{t(label)}</span>
               </button>
             );
           })}
         </nav>
 
         {isPlanOpen && <PlanModal onClose={() => setIsPlanOpen(false)} />}
+        {isSettingsOpen && (
+          <SettingsModal
+            onClose={() => setIsSettingsOpen(false)}
+            onDeleteAccount={() => {
+              setIsSettingsOpen(false);
+              void handleDeleteAccount();
+            }}
+          />
+        )}
         {reportMonth !== null && <MonthlyReportModal initialMonth={reportMonth} onClose={() => setReportMonth(null)} />}
 
         {reportBanner && (
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-900 dark:text-indigo-200 text-sm">
             <BarChart3 className="w-5 h-5 text-indigo-500 shrink-0" />
             <span className="flex-1">
-              <strong>{reportBanner.label}</strong> raporun hazır: ne kadar harcadın, ne değişti, nerede tasarruf edebilirsin?
-            </span>
+              <strong>{reportBanner.label}</strong>{' '}{t("raporun hazır: ne kadar harcadın, ne değişti, nerede tasarruf edebilirsin?")}</span>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => openReport(reportBanner.key)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
-              >
-                Raporu gör
-              </button>
+              >{t("Raporu gör")}</button>
               <button
                 type="button"
-                aria-label="Rapor uyarısını kapat"
+                aria-label={t("Rapor uyarısını kapat")}
                 onClick={() => {
                   storageSet(REPORT_SEEN_KEY, reportBanner.key);
                   setReportBanner(null);
@@ -209,13 +235,11 @@ export function Dashboard() {
                   setLimitMessage(null);
                 }}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950"
-              >
-                Planımı gör
-              </button>
+              >{t("Planımı gör")}</button>
               <button
                 type="button"
                 onClick={() => setLimitMessage(null)}
-                aria-label="Uyarıyı kapat"
+                aria-label={t("Uyarıyı kapat")}
                 className="p-1 rounded-lg hover:bg-amber-500/20"
               >
                 <X className="w-4 h-4" />
@@ -234,5 +258,6 @@ export function Dashboard() {
         {tab === 'assistant' && <AssistantView messages={chat} setMessages={setChat} />}
       </main>
     </div>
+    </AiConsentProvider>
   );
 }

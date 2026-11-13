@@ -1,3 +1,4 @@
+import { getLocaleTag } from '../i18n';
 import type { BillingCycle, CurrencyTotal, SubscriptionStatus } from '../services/api';
 
 export const CYCLE_LABELS: Record<BillingCycle, string> = {
@@ -47,14 +48,15 @@ export const CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP'];
 const moneyFormatters = new Map<string, Intl.NumberFormat>();
 
 export function formatMoney(amount: number, currency = 'TRY'): string {
-  let fmt = moneyFormatters.get(currency);
+  const key = `${getLocaleTag()}:${currency}`;
+  let fmt = moneyFormatters.get(key);
   if (!fmt) {
     try {
-      fmt = new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 });
+      fmt = new Intl.NumberFormat(getLocaleTag(), { style: 'currency', currency, minimumFractionDigits: 2 });
     } catch {
-      fmt = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      fmt = new Intl.NumberFormat(getLocaleTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    moneyFormatters.set(currency, fmt);
+    moneyFormatters.set(key, fmt);
   }
   return fmt.format(amount || 0);
 }

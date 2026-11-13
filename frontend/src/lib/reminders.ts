@@ -3,7 +3,9 @@
  * Sunucu veya Firebase gerektirmez; uygulama her açıldığında/abonelikler değiştiğinde yeniden planlanır.
  */
 import { LocalNotifications, LocalNotificationSchema } from '@capacitor/local-notifications';
+import { t } from '../i18n';
 import type { Subscription } from '../services/api';
+import { monthLabel } from './format';
 import { isNative } from './native';
 import { storageGet, storageSet } from './storage';
 import { formatMoney } from './subscriptions';
@@ -36,17 +38,17 @@ export function buildReminders(subs: Subscription[], now: Date = new Date()): Lo
 
     // 1) Yenilemeden bir gün önce; o an geçtiyse ödeme günü sabahı
     let when = atLocal(sub.next_billing_date, REMIND_HOUR, -1);
-    let body = `${sub.name} yarın yenileniyor: ${price}.`;
+    let body = t('{0} yarın yenileniyor: {1}.', { 0: sub.name, 1: price });
     if (when <= now) {
       when = atLocal(sub.next_billing_date, REMIND_HOUR);
-      body = `${sub.name} bugün yenileniyor: ${price}.`;
+      body = t('{0} bugün yenileniyor: {1}.', { 0: sub.name, 1: price });
     }
     if (when > now && when <= horizon && sub.status === 'active') {
       result.push({
         id: sub.id * 10 + 1,
-        title: 'Abonelik yenileniyor',
+        title: t('Abonelik yenileniyor'),
         body,
-        schedule: { at: when, allowWhileIdle: true },
+        schedule: { at: when },
         extra: { kind: 'renewal', subscriptionId: sub.id },
       });
     }
@@ -57,9 +59,9 @@ export function buildReminders(subs: Subscription[], now: Date = new Date()): Lo
       if (trialAt > now && trialAt <= horizon) {
         result.push({
           id: sub.id * 10 + 2,
-          title: 'Deneme süresi bitiyor',
-          body: `${sub.name} denemesi 2 gün sonra bitiyor. Devam etmeyecekseniz şimdi iptal edin, yoksa ${price} çekilecek.`,
-          schedule: { at: trialAt, allowWhileIdle: true },
+          title: t('Deneme süresi bitiyor'),
+          body: t('{0} denemesi 2 gün sonra bitiyor. Devam etmeyecekseniz şimdi iptal edin, yoksa {1} çekilecek.', { 0: sub.name, 1: price }),
+          schedule: { at: trialAt },
           extra: { kind: 'trial', subscriptionId: sub.id },
         });
       }
@@ -73,17 +75,16 @@ export function buildReminders(subs: Subscription[], now: Date = new Date()): Lo
 
 /** Her ayın 1'i saat 10:00'da "geçen ayın raporu hazır" bildirimi (bir sonraki ay başı için). */
 export const MONTHLY_REPORT_NOTIFICATION_ID = 900_001;
-const TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
 export function buildMonthlyReportReminder(now: Date = new Date()): LocalNotificationSchema {
   const at = new Date(now.getFullYear(), now.getMonth() + 1, 1, REMIND_HOUR, 0, 0, 0);
   const reportMonth = new Date(at.getFullYear(), at.getMonth() - 1, 1);
-  const label = `${TR_MONTHS[reportMonth.getMonth()]} ${reportMonth.getFullYear()}`;
+  const label = monthLabel(reportMonth);
   return {
     id: MONTHLY_REPORT_NOTIFICATION_ID,
-    title: `${label} raporun hazır`,
-    body: 'Geçen ay ne kadar harcadın, en çok nereye gitti, hangi abonelikler zamlandı? Hemen bak.',
-    schedule: { at, allowWhileIdle: true },
+    title: t('{0} raporun hazır', { 0: label }),
+    body: t('Geçen ay ne kadar harcadın, en çok nereye gitti, hangi abonelikler zamlandı? Hemen bak.'),
+    schedule: { at },
     extra: { kind: 'monthly-report' },
   };
 }

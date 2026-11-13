@@ -69,8 +69,11 @@ def anon_client(db_session: Session) -> Generator[TestClient, None, None]:
 def register(anon_client: TestClient) -> Callable[..., str]:
     """Yeni kullanıcı kaydeder ve access token döner."""
 
-    def _register(email: str = "utku@example.com", password: str = "gizli-sifre-123") -> str:
-        res = anon_client.post("/api/v1/auth/register", json={"email": email, "password": password, "accept_terms": True})
+    def _register(email: str = "utku@example.com", password: str = "gizli-sifre-123", ai_consent: bool = True) -> str:
+        res = anon_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "password": password, "accept_terms": True, "ai_consent": ai_consent},
+        )
         assert res.status_code == 201, res.text
         return res.json()["access_token"]
 

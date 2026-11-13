@@ -19,6 +19,7 @@ import {
 } from '../../services/api';
 import { INPUT_CLASS, Modal, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../ui';
 
+import { categoryLabel, t } from '../../i18n';
 interface SubscriptionFormModalProps {
   /** Düzenlenecek abonelik; null ise yeni kayıt. */
   subscription: Subscription | null;
@@ -101,10 +102,10 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
     e.preventDefault();
     setError(null);
     const amount = parseAmount(form.amountText);
-    if (!form.name.trim()) return setError('Abonelik adı boş bırakılamaz.');
-    if (!Number.isFinite(amount) || amount < 0) return setError('Geçerli bir ücret girin (Örn: 129,99).');
-    if (!form.next_billing_date) return setError('Sonraki ödeme tarihini seçin.');
-    if (form.status === 'trial' && !form.trial_ends_at) return setError('Deneme süresinin bitiş tarihini seçin.');
+    if (!form.name.trim()) return setError(t("Abonelik adı boş bırakılamaz."));
+    if (!Number.isFinite(amount) || amount < 0) return setError(t("Geçerli bir ücret girin (Örn: 129,99)."));
+    if (!form.next_billing_date) return setError(t("Sonraki ödeme tarihini seçin."));
+    if (form.status === 'trial' && !form.trial_ends_at) return setError(t("Deneme süresinin bitiş tarihini seçin."));
 
     const { amountText: _ignored, ...rest } = form;
     void _ignored;
@@ -122,7 +123,7 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
       const saved = isNew ? await createSubscription(payload) : await updateSubscription(subscription.id, payload);
       onSaved(saved, isNew);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Abonelik kaydedilemedi.'));
+      setError(getApiErrorMessage(err, t("Abonelik kaydedilemedi.")));
     } finally {
       setIsSaving(false);
     }
@@ -130,13 +131,11 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
 
   return (
     <Modal
-      title={isNew ? 'Abonelik Ekle' : 'Aboneliği Düzenle'}
+      title={isNew ? t("Abonelik Ekle") : t("Aboneliği Düzenle")}
       onClose={onClose}
       footer={
         <>
-          <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>
-            Vazgeç
-          </button>
+          <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>{t("Vazgeç")}</button>
           <button type="submit" form="subscription-form" disabled={isSaving} className={PRIMARY_BUTTON}>
             {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
             {isNew ? 'Ekle' : 'Kaydet'}
@@ -147,7 +146,7 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
       <form id="subscription-form" onSubmit={handleSubmit} className="space-y-4">
         {isNew && catalog.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Hızlı seç</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{t("Hızlı seç")}</p>
             <div className="flex flex-wrap gap-1.5">
               {catalog.map((entry) => (
                 <button
@@ -168,20 +167,20 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
         )}
 
         <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Abonelik adı</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Abonelik adı")}</span>
           <input
             className={INPUT_CLASS}
             value={form.name}
             maxLength={120}
             onChange={(e) => patch({ name: e.target.value })}
-            placeholder="Örn: Netflix, Spor salonu"
+            placeholder={t("Örn: Netflix, Spor salonu")}
             required
           />
         </label>
 
         <div className="grid grid-cols-3 gap-3">
           <label className="col-span-2 block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Ücret</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Ücret")}</span>
             <input
               className={INPUT_CLASS}
               inputMode="decimal"
@@ -192,7 +191,7 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
             />
           </label>
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Para birimi</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Para birimi")}</span>
             <select className={INPUT_CLASS} value={form.currency} onChange={(e) => patch({ currency: e.target.value })}>
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>
@@ -205,7 +204,7 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Ödeme sıklığı</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Ödeme sıklığı")}</span>
             <select
               className={INPUT_CLASS}
               value={form.billing_cycle}
@@ -213,13 +212,13 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
             >
               {(Object.keys(CYCLE_LABELS) as BillingCycle[]).map((c) => (
                 <option key={c} value={c}>
-                  {CYCLE_LABELS[c]}
+                  {t(CYCLE_LABELS[c])}
                 </option>
               ))}
             </select>
           </label>
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Sonraki ödeme</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Sonraki ödeme")}</span>
             <input
               type="date"
               className={INPUT_CLASS}
@@ -232,17 +231,17 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Kategori</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Kategori")}</span>
             <select className={INPUT_CLASS} value={form.category} onChange={(e) => patch({ category: e.target.value })}>
               {categories.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {categoryLabel(c)}
                 </option>
               ))}
             </select>
           </label>
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Durum</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Durum")}</span>
             <select
               className={INPUT_CLASS}
               value={form.status}
@@ -256,7 +255,7 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
             >
               {(Object.keys(STATUS_LABELS) as SubscriptionStatus[]).map((s) => (
                 <option key={s} value={s}>
-                  {STATUS_LABELS[s]}
+                  {t(STATUS_LABELS[s])}
                 </option>
               ))}
             </select>
@@ -265,45 +264,41 @@ export function SubscriptionFormModal({ subscription, catalog, onClose, onSaved 
 
         {form.status === 'trial' && (
           <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Deneme süresi bitişi</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Deneme süresi bitişi")}</span>
             <input
               type="date"
               className={INPUT_CLASS}
               value={form.trial_ends_at ?? ''}
               onChange={(e) => patch({ trial_ends_at: e.target.value || null })}
             />
-            <span className="block text-[11px] text-slate-400">
-              Bitmeden önce uyarılırsınız; bitince abonelik otomatik olarak aktife geçer.
-            </span>
+            <span className="block text-[11px] text-slate-400">{t("Bitmeden önce uyarılırsınız; bitince abonelik otomatik olarak aktife geçer.")}</span>
           </label>
         )}
 
         <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">İptal linki (isteğe bağlı)</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("İptal linki (isteğe bağlı)")}</span>
           <input
             type="url"
             className={INPUT_CLASS}
             value={form.cancel_url ?? ''}
             onChange={(e) => patch({ cancel_url: e.target.value })}
-            placeholder="https://..."
+            placeholder={t("https://...")}
           />
         </label>
 
         <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Not (isteğe bağlı)</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Not (isteğe bağlı)")}</span>
           <textarea
             className={`${INPUT_CLASS} min-h-[64px]`}
             value={form.notes ?? ''}
             maxLength={1000}
             onChange={(e) => patch({ notes: e.target.value })}
-            placeholder="Örn: Aile planı, kardeşimle paylaşıyoruz"
+            placeholder={t("Örn: Aile planı, kardeşimle paylaşıyoruz")}
           />
         </label>
 
         {!isNew && (
-          <p className="text-[11px] text-slate-400">
-            Ücreti değiştirirseniz eski ve yeni tutar zam geçmişine kaydedilir.
-          </p>
+          <p className="text-[11px] text-slate-400">{t("Ücreti değiştirirseniz eski ve yeni tutar zam geçmişine kaydedilir.")}</p>
         )}
 
         {error && (

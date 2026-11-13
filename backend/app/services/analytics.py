@@ -17,11 +17,13 @@ from sqlalchemy.orm import Session
 from app.models.budget import Budget
 from app.models.receipt import Receipt
 from app.models.transaction import Transaction
+from app.core.i18n import get_locale
 from app.services.subscription_catalog import normalize_text
 
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
 TR_MONTHS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
+EN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 WARNING_RATIO = Decimal("0.8")
 
@@ -54,7 +56,7 @@ def month_range(year: int, month: int) -> MonthRange:
     last_day = calendar.monthrange(year, month)[1]
     return MonthRange(
         key=f"{year:04d}-{month:02d}",
-        label=f"{TR_MONTHS[month - 1]} {year}",
+        label=f"{(EN_MONTHS if get_locale() == 'en' else TR_MONTHS)[month - 1]} {year}",
         start=dt.date(year, month, 1),
         end=dt.date(year, month, last_day),
     )

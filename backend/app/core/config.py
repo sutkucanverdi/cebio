@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     BCRYPT_ROUNDS: int = 12
 
     # Yasal metinlerin geçerli sürümü (metin değişince artırın; onay kaydına yazılır)
-    TERMS_VERSION: str = "2026-11.2"
+    TERMS_VERSION: str = "2026-11.3"
 
     # Yükleme limitleri
     MAX_UPLOAD_MB: int = 10

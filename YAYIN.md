@@ -3,13 +3,18 @@
 Bu rehber Cebio'yu sunucuya kurup Google Play ve App Store'a çıkarmak için gereken adımları sırayla anlatır.
 Kodla ilgili kısımlar hazırdır; aşağıdakiler **senin hesaplarınla ve kararlarınla** yapılması gereken işlerdir.
 
+> Mağaza kurallarının madde madde kontrol listesi, form cevapları ve mağaza metinleri (TR/EN): **[MAGAZA.md](MAGAZA.md)**
+
 ---
 
 ## 0. Yayın öncesi kontrol listesi
 
-- [ ] Yasal metinlerdeki `[KÖŞELİ PARANTEZLİ]` alanları doldur:
-      `frontend/public/gizlilik.html` ve `frontend/public/kullanim-kosullari.html`
+- [ ] Yasal metinlerdeki `[KÖŞELİ PARANTEZLİ]` alanları doldur (8 dosya, TR+EN):
+      `frontend/public/` altında `gizlilik`, `privacy`, `kullanim-kosullari`, `terms`, `hesap-silme`,
+      `delete-account`, `destek`, `support` (.html)
       (veri sorumlusu adı/unvanı, adres, iletişim e-postası, sunucu konumu, yedek saklama süresi)
+- [ ] `frontend/.env.production` içinde `VITE_SUPPORT_EMAIL` ve `VITE_PUBLIC_SITE_URL` ayarlı
+- [ ] Gemini API'de **faturalandırma açık** (ücretsiz katmanda içerikler Google tarafından kullanılabilir; gizlilik metni ücretli katmanı varsayar)
 - [ ] Yasal metinleri bir avukata/KVKK danışmanına kontrol ettir (bu metinler şablondur, hukuki görüş değildir)
 - [ ] Ticari faaliyet olacaksa VERBİS kayıt yükümlülüğünü kontrol et
 - [ ] SMTP ayarlandı ve şifre sıfırlama e-postası gerçekten ulaşıyor; e-posta sağlayıcısı gizlilik metnine eklendi
@@ -73,7 +78,14 @@ npm run build                                # çıktı: frontend/dist
 ```
 
 `frontend/dist` klasörünü Cloudflare Pages, Netlify veya Vercel gibi bir statik barındırmaya yükle.
-Gizlilik politikası adresi: `https://WEB-ALAN-ADIN/gizlilik.html`
+Mağaza formlarına girilecek adresler:
+
+| Alan | Adres |
+|---|---|
+| Gizlilik politikası | `https://WEB-ALAN-ADIN/gizlilik.html` (İngilizce: `/privacy.html`) |
+| Kullanım koşulları (EULA) | `https://WEB-ALAN-ADIN/kullanim-kosullari.html` (`/terms.html`) |
+| Hesap silme (Play zorunlu) | `https://WEB-ALAN-ADIN/hesap-silme.html` (`/delete-account.html`) |
+| Destek URL'i (App Store zorunlu) | `https://WEB-ALAN-ADIN/destek.html` (`/support.html`) |
 
 ---
 
@@ -133,14 +145,7 @@ cd frontend && npm run cap:sync && cd android
 2. **Yeni kişisel hesaplar** üretime çıkmadan önce bir süre **kapalı test** yapmak zorunda (belirli sayıda test
    kullanıcısı, belirli gün sayısı). Güncel şartları Play Console'da kontrol et ve arkadaşlarını test grubuna ekle.
 3. Uygulama oluştur: varsayılan dil Türkçe, uygulama adı "Cebio", paket adı `io.github.sutkucanverdi.cebio`.
-4. **Veri güvenliği formu** için toplanan veriler:
-   - E-posta adresi, ad (isteğe bağlı) — hesap yönetimi
-   - Finansal bilgi: satın alma geçmişi (fişler), diğer finansal bilgiler (abonelikler, bütçeler)
-   - Fotoğraflar (fiş) ve dosyalar (ekstre) — işlenir, dosyaların kendisi **saklanmaz**
-   - Finansal bilgi: kullanıcının onaylayıp içe aktardığı banka/kart işlemleri — **saklanır** (silinebilir)
-   - Uygulama içi mesajlar (asistan soruları) — işlenir, saklanmaz
-   - Veriler aktarım sırasında şifrelenir: Evet · Kullanıcı verisinin silinmesini isteyebilir: Evet (uygulama içinden)
-   - Üçüncü tarafla paylaşım: Google (Gemini) — hizmetin sunulması için işleme
+4. **Veri güvenliği formu:** cevaplar [MAGAZA.md §4.2](MAGAZA.md). Hesap silme URL'i: `/hesap-silme.html`.
 5. **Finansal özellikler beyanı:** "Kişisel finans / bütçe takibi" seç; uygulama ödeme, kredi veya yatırım hizmeti sunmuyor.
 6. Mağaza girdisi: ikon `frontend/assets/play-store-icon-512.png`, öne çıkan görsel (1024×500, hazırlanmalı),
    en az 2 telefon ekran görüntüsü, kısa ve uzun açıklama, gizlilik politikası URL'i.
@@ -156,9 +161,11 @@ iOS derlemesi için **macOS ve Xcode** gerekir (Windows'ta yapılamaz). Proje `f
 2. Mac'te: `cd frontend && npm install && npm run cap:sync && npx cap open ios`
 3. Xcode'da Signing & Capabilities → Team seç; Bundle ID `io.github.sutkucanverdi.cebio`.
 4. Product → Archive → App Store Connect'e yükle.
-5. App Store Connect'te **App Privacy** bölümünü Bölüm 3.4'teki verilerle doldur.
-6. Gereksinimler zaten karşılanıyor: uygulama içinden hesap silme ✓, gizlilik politikası ✓,
-   üçüncü taraf girişi olmadığı için "Sign in with Apple" zorunlu değil ✓.
+5. App Store Connect'te **App Privacy** bölümünü [MAGAZA.md §4.1](MAGAZA.md) ile doldur (gizlilik manifestiyle aynı).
+6. **Xcode 26 veya üstü** gerekir (iOS 26 SDK zorunlu).
+7. Kodda hazır olanlar: hesap silme, gizlilik manifesti, kamera/fotoğraf izin metinleri, şifreleme beyanı,
+   yapay zeka izni, abonelik açıklamaları, satın alımları geri yükleme. "Sign in with Apple" gerekmez
+   (üçüncü taraf giriş yok).
 
 ---
 
@@ -189,9 +196,15 @@ premium 200 / 20 / 300 (adil kullanım tavanı). Limitler yalnızca başarılı 
 3. RevenueCat → Integrations → Webhooks:
    - URL: `https://API-ADRESIN/api/v1/billing/revenuecat-webhook`
    - Authorization header: uzun rastgele bir değer → aynı değeri sunucuda `REVENUECAT_WEBHOOK_SECRET` yap.
-4. Mobil tarafta `@revenuecat/purchases-capacitor` eklenip "Premium'a geç" butonu satın almaya bağlanacak
-   (RevenueCat API anahtarları alındıktan sonra yapılacak adım). Uygulama kullanıcıyı RevenueCat'e kendi
-   kullanıcı ID'mizle tanıtır: `Purchases.logIn({ appUserID: String(user.id) })`.
+4. Mobil satın alma kodu hazır (`frontend/src/lib/purchases.ts`). RevenueCat'in **genel (public) SDK
+   anahtarlarını** `frontend/.env.production` dosyasına yaz ve yeniden derle:
+   ```
+   VITE_REVENUECAT_APPLE_KEY=appl_...
+   VITE_REVENUECAT_GOOGLE_KEY=goog_...
+   ```
+   Anahtar yoksa Premium satın alma bölümü telefonda **hiç gösterilmez**; yarım satın alma butonu inceleme
+   reddine yol açar. RevenueCat'te "current offering" içine `$rc_monthly` ve `$rc_annual` paketlerini ekle.
+   Uygulama kullanıcıyı kendi ID'mizle tanıtır (`appUserID = user.id`), webhook bu ID ile premium'u açar.
 
 **Maliyet notu:** `gemini-3.5-flash-lite` ile bir fiş taraması ~0,1 ₺, bir asistan sorusu ~0,2 ₺ civarındadır.
 Premium tavanını sonuna kadar kullanan nadir bir kullanıcının Gemini maliyeti aylık ~80 ₺'ye çıkabilir;
@@ -212,7 +225,7 @@ python -m app.cli plan kisi@ornek.com
 
 ```bash
 # 1) Testler
-cd backend && python -m pytest && cd ../frontend && npm test
+npm test     # kökte: backend + frontend testleri
 # 2) Backend'i deploy et (platformun kendi adımı; migration'lar açılışta uygulanır)
 # 3) Mobil
 #    android/app/build.gradle -> versionCode +1

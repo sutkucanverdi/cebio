@@ -2,6 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { useAndroidBack } from '../lib/native';
 
+import { t } from '../i18n';
 export const CARD_SURFACE_CLASS =
   'rounded-2xl bg-white dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow';
 
@@ -41,7 +42,7 @@ export function Notice({ kind, message, onClose }: NoticeProps) {
       <button
         type="button"
         onClick={onClose}
-        aria-label="Bildirimi kapat"
+        aria-label={t("Bildirimi kapat")}
         className={`p-1 rounded-lg transition ${isSuccess ? 'hover:bg-emerald-500/20' : 'hover:bg-rose-500/20'}`}
       >
         <X className="w-4 h-4" />
@@ -101,7 +102,7 @@ export function Modal({ title, onClose, children, footer, wide = false }: ModalP
           <button
             type="button"
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t("Kapat")}
             className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="w-4 h-4" />

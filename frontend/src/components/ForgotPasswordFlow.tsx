@@ -3,6 +3,7 @@ import { AlertCircle, ArrowLeft, Loader2, MailCheck } from 'lucide-react';
 import { getApiErrorMessage, requestPasswordReset, resetPassword } from '../services/api';
 import { INPUT_CLASS } from './ui';
 
+import { t } from '../i18n';
 interface ForgotPasswordFlowProps {
   initialEmail: string;
   onBack: () => void;
@@ -29,7 +30,7 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
       await requestPasswordReset(email.trim());
       setStep('code');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Kod gönderilemedi. Lütfen tekrar deneyin.'));
+      setError(getApiErrorMessage(err, t("Kod gönderilemedi. Lütfen tekrar deneyin.")));
     } finally {
       setIsSubmitting(false);
     }
@@ -39,15 +40,15 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
     e.preventDefault();
     setError(null);
     if (!/^[0-9]{6}$/.test(code)) {
-      setError('Kod 6 haneli olmalı.');
+      setError(t("Kod 6 haneli olmalı."));
       return;
     }
     if (password.length < 8) {
-      setError('Şifre en az 8 karakter olmalı.');
+      setError(t("Şifre en az 8 karakter olmalı."));
       return;
     }
     if (password !== passwordAgain) {
-      setError('Şifreler birbiriyle aynı değil.');
+      setError(t("Şifreler birbiriyle aynı değil."));
       return;
     }
     setIsSubmitting(true);
@@ -55,7 +56,7 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
       await resetPassword(email.trim(), code, password);
       onDone(email.trim());
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Şifre değiştirilemedi. Lütfen tekrar deneyin.'));
+      setError(getApiErrorMessage(err, t("Şifre değiştirilemedi. Lütfen tekrar deneyin.")));
     } finally {
       setIsSubmitting(false);
     }
@@ -75,13 +76,11 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
     return (
       <form onSubmit={sendCode} className={cardClass}>
         <div>
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Şifremi unuttum</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            E-posta adresini yaz, sana 6 haneli bir sıfırlama kodu gönderelim.
-          </p>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t("Şifremi unuttum")}</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t("E-posta adresini yaz, sana 6 haneli bir sıfırlama kodu gönderelim.")}</p>
         </div>
         <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">E-posta</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("E-posta")}</span>
           <input
             type="email"
             required
@@ -95,16 +94,13 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
         </label>
         {errorBox}
         <button type="submit" disabled={isSubmitting} className={SUBMIT_CLASS}>
-          {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          Kodu gönder
-        </button>
+          {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}{t("Kodu gönder")}</button>
         <button
           type="button"
           onClick={onBack}
           className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:underline"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Girişe dön
-        </button>
+          <ArrowLeft className="w-3.5 h-3.5" />{' '}{t("Girişe dön")}</button>
       </form>
     );
   }
@@ -114,12 +110,10 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
       <div className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs">
         <MailCheck className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
-          <strong>{email}</strong> kayıtlıysa kod gönderildi. Gelen kutunu ve spam klasörünü kontrol et. Kod 15 dakika
-          geçerli.
-        </span>
+          <strong>{email}</strong>{' '}{t("kayıtlıysa kod gönderildi. Gelen kutunu ve spam klasörünü kontrol et. Kod 15 dakika geçerli.")}</span>
       </div>
       <label className="block space-y-1.5">
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">6 haneli kod</span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("6 haneli kod")}</span>
         <input
           required
           autoFocus
@@ -132,7 +126,7 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
         />
       </label>
       <label className="block space-y-1.5">
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Yeni şifre</span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Yeni şifre")}</span>
         <input
           type="password"
           required
@@ -142,10 +136,10 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
           onChange={(e) => setPassword(e.target.value)}
           className={INPUT_CLASS}
         />
-        <span className="block text-[11px] text-slate-400">En az 8 karakter</span>
+        <span className="block text-[11px] text-slate-400">{t("En az 8 karakter")}</span>
       </label>
       <label className="block space-y-1.5">
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Yeni şifre (tekrar)</span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{t("Yeni şifre (tekrar)")}</span>
         <input
           type="password"
           required
@@ -158,9 +152,7 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
       </label>
       {errorBox}
       <button type="submit" disabled={isSubmitting} className={SUBMIT_CLASS}>
-        {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-        Şifreyi değiştir
-      </button>
+        {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}{t("Şifreyi değiştir")}</button>
       <button
         type="button"
         onClick={() => {
@@ -169,9 +161,7 @@ export function ForgotPasswordFlow({ initialEmail, onBack, onDone }: ForgotPassw
           setError(null);
         }}
         className="w-full text-xs font-medium text-slate-500 dark:text-slate-400 hover:underline"
-      >
-        Kod gelmedi, tekrar gönder
-      </button>
+      >{t("Kod gelmedi, tekrar gönder")}</button>
     </form>
   );
 }

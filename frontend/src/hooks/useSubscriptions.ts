@@ -9,6 +9,7 @@ import {
   SubscriptionSummary,
 } from '../services/api';
 
+import { t } from '../i18n';
 const EMPTY_SUMMARY: SubscriptionSummary = {
   active_count: 0,
   monthly_totals: [],
@@ -38,7 +39,7 @@ export function useSubscriptions() {
       setError(null);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
-      setError(getApiErrorMessage(err, 'Abonelikler alınırken bir hata oluştu.'));
+      setError(getApiErrorMessage(err, t("Abonelikler alınırken bir hata oluştu.")));
     } finally {
       if (requestId === requestIdRef.current) setIsLoading(false);
     }

@@ -1,4 +1,6 @@
+import { categoryLabel, t } from '../i18n';
 import type { Receipt } from '../services/api';
+import { isNative } from './native';
 import { getUnitPrice, safeQuantity, todayIso } from './format';
 
 export interface ExportRow {
@@ -36,8 +38,8 @@ export function buildExportRows(receipts: Receipt[], categoryFilter: string): Ex
       rows.push({
         date: receipt.date,
         merchant: receipt.merchant,
-        category: 'Diğer',
-        name: 'Genel Fiş Tutarı',
+        category: categoryLabel('Diğer'),
+        name: t('Genel Fiş Tutarı'),
         quantity: 1,
         unitPrice: round2(receipt.total_amount),
         total: round2(receipt.total_amount),
@@ -49,7 +51,7 @@ export function buildExportRows(receipts: Receipt[], categoryFilter: string): Ex
       rows.push({
         date: receipt.date,
         merchant: receipt.merchant,
-        category: item.category,
+        category: categoryLabel(item.category),
         name: item.name,
         quantity: safeQuantity(item.quantity),
         unitPrice: round2(getUnitPrice(item)),
@@ -60,7 +62,33 @@ export function buildExportRows(receipts: Receipt[], categoryFilter: string): Ex
   return rows;
 }
 
-function downloadBlob(blob: Blob, filename: string): void {
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Web'de dosyayı indirir. Telefonda WebView indirme yapamadığı için dosya uygulama önbelleğine yazılır
+ * ve sistem paylaşım menüsü açılır (Dosyalar'a kaydet, e-postayla gönder, Drive...).
+ */
+async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  if (isNative()) {
+    const [{ Filesystem, Directory }, { Share }] = await Promise.all([
+      import('@capacitor/filesystem'),
+      import('@capacitor/share'),
+    ]);
+    const written = await Filesystem.writeFile({
+      path: filename,
+      data: await blobToBase64(blob),
+      directory: Directory.Cache,
+    });
+    await Share.share({ title: filename, files: [written.uri], dialogTitle: t('Dosyayı paylaş veya kaydet') });
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -83,8 +111,8 @@ function escapeCsvCell(value: string | number): string {
   return str;
 }
 
-export function exportCsv(rows: ExportRow[]): void {
-  const lines = [HEADERS.map((h) => h.label).join(',')];
+export async function exportCsv(rows: ExportRow[]): Promise<void> {
+  const lines = [HEADERS.map((h) => t(h.label)).join(',')];
   for (const row of rows) {
     lines.push(
       HEADERS.map((h) => {
@@ -95,7 +123,7 @@ export function exportCsv(rows: ExportRow[]): void {
   }
   // UTF-8 BOM ile Excel'de Türkçe karakterler doğru görünür
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  downloadBlob(blob, `cebio-harcamalar-${todayIso()}.csv`);
+  await downloadBlob(blob, `cebio-harcamalar-${todayIso()}.csv`);
 }
 
 export async function exportExcel(rows: ExportRow[]): Promise<void> {
@@ -103,10 +131,10 @@ export async function exportExcel(rows: ExportRow[]): Promise<void> {
   const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Cebio';
-  const sheet = workbook.addWorksheet('Harcamalar', { views: [{ state: 'frozen', ySplit: 1 }] });
+  const sheet = workbook.addWorksheet(t('Harcamalar'), { views: [{ state: 'frozen', ySplit: 1 }] });
 
   sheet.columns = HEADERS.map((h) => ({
-    header: h.label,
+    header: t(h.label),
     key: h.key,
     width: h.width,
     style: h.money ? { numFmt: '#,##0.00' } : undefined,
@@ -118,5 +146,5 @@ export async function exportExcel(rows: ExportRow[]): Promise<void> {
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
-  downloadBlob(blob, `cebio-harcamalar-${todayIso()}.xlsx`);
+  await downloadBlob(blob, `cebio-harcamalar-${todayIso()}.xlsx`);
 }

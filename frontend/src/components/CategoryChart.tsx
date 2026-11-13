@@ -1,9 +1,10 @@
 import { PieChart as PieChartIcon } from 'lucide-react';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, TooltipProps } from 'recharts';
 import type { CategoryBreakdown, ReceiptSummary } from '../services/api';
-import { formatCurrency, formatQuantity } from '../lib/format';
+import { formatCurrency, formatQuantity, formatPercent } from '../lib/format';
 import { CARD_SURFACE_CLASS, CHART_COLORS } from './ui';
 
+import { categoryLabel, t } from '../i18n';
 interface CustomPieTooltipProps extends TooltipProps<number, string> {
   totalAmount: number;
 }
@@ -21,17 +22,17 @@ function CustomPieTooltip({ active, payload, totalAmount }: CustomPieTooltipProp
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-xs font-semibold">
           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color || '#10b981' }} />
-          {data.category}
+          {categoryLabel(data.category)}
         </span>
         <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          %{pct}
+          {formatPercent(Number(pct))}
         </span>
       </div>
       <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-slate-100 dark:border-slate-800 pt-1.5">
-        <span className="text-[11px] text-slate-500 dark:text-slate-400">{formatQuantity(data.item_count)} ürün</span>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400">{formatQuantity(data.item_count)}{' '}{t("ürün")}</span>
         <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(amount)}</span>
       </div>
-      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Filtrelemek için tıklayın</p>
+      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{t("Filtrelemek için tıklayın")}</p>
     </div>
   );
 }
@@ -55,22 +56,19 @@ export function CategoryChart({ summary, categoryFilter, darkMode, onToggleCateg
         <div>
           <div className="flex items-center gap-2">
             <PieChartIcon className="w-4 h-4 text-indigo-500" />
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Kategori Bazlı Harcama Dağılımı</h2>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t("Kategori Bazlı Harcama Dağılımı")}</h2>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            Tabloyu filtrelemek için grafikteki bir dilime veya kategoriye tıklayın.
-          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{t("Tabloyu filtrelemek için grafikteki bir dilime veya kategoriye tıklayın.")}</p>
         </div>
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
-          {breakdown.length} aktif kategori
-        </span>
+          {breakdown.length}{' '}{t("aktif kategori")}</span>
       </div>
 
       {breakdown.length === 0 ? (
         <div className="flex-1 min-h-[260px] flex flex-col items-center justify-center text-center text-slate-400">
           <PieChartIcon className="w-10 h-10 mb-2 opacity-40" />
-          <p className="text-sm font-medium">Henüz harcama verisi bulunmuyor</p>
-          <p className="text-xs mt-1">İlk fişinizi yüklediğinizde kategori dağılım grafiği burada oluşacaktır.</p>
+          <p className="text-sm font-medium">{t("Henüz harcama verisi bulunmuyor")}</p>
+          <p className="text-xs mt-1">{t("İlk fişinizi yüklediğinizde kategori dağılım grafiği burada oluşacaktır.")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center flex-1">
@@ -117,7 +115,7 @@ export function CategoryChart({ summary, categoryFilter, darkMode, onToggleCateg
                   verticalAlign="bottom"
                   height={32}
                   formatter={(value: string) => (
-                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{value}</span>
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{categoryLabel(value)}</span>
                   )}
                 />
               </PieChart>
@@ -146,15 +144,15 @@ export function CategoryChart({ summary, categoryFilter, darkMode, onToggleCateg
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-semibold truncate">{cat.category}</span>
+                      <span className="font-semibold truncate">{categoryLabel(cat.category)}</span>
                     </span>
                     <span className="font-semibold text-slate-900 dark:text-white shrink-0">
                       {formatCurrency(cat.total_amount)}
                     </span>
                   </div>
                   <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                    <span>{formatQuantity(cat.item_count)} ürün</span>
-                    <span className="font-medium">%{pct}</span>
+                    <span>{formatQuantity(cat.item_count)}{' '}{t("ürün")}</span>
+                    <span className="font-medium">{formatPercent(Number(pct))}</span>
                   </div>
                 </button>
               );

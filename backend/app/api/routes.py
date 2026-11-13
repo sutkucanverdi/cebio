@@ -15,11 +15,14 @@ from app.models.receipt import Receipt, ReceiptItem
 from app.models.user import User
 from app.schemas.receipt import (
     CategoryBreakdown,
+    PriceHistoryResponse,
+    PriceWatchResponse,
     ReceiptResponse,
     ReceiptSummaryResponse,
     ReceiptUpdate,
 )
 from app.services.billing import ensure_quota, record_usage
+from app.services.price_watch import price_history, price_watch
 from app.services.ai_errors import is_quota_error, quota_exceeded
 from app.services.receipt_parser import ReceiptParseError, receipt_parser_service
 
@@ -283,6 +286,59 @@ def list_receipts(
 
     stmt = stmt.order_by(Receipt.date.desc(), Receipt.id.desc())
     return list(db.scalars(stmt).all())
+
+
+@router.post(
+    "",
+    response_model=ReceiptResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Fişi elle ekle (yapay zeka kullanmaz, limit yemez)",
+)
+def create_receipt(
+    payload: ReceiptUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Receipt:
+    receipt = Receipt(
+        user_id=current_user.id,
+        merchant=payload.merchant.strip(),
+        date=payload.date,
+        total_amount=to_money(payload.total_amount),
+        items=[
+            build_item(item.name, item.price, item.quantity, item.unit_price, item.category)
+            for item in payload.items
+        ],
+    )
+    db.add(receipt)
+    db.commit()
+    db.refresh(receipt)
+    return receipt
+
+
+@router.get(
+    "/price-watch",
+    response_model=PriceWatchResponse,
+    summary="Kişisel enflasyon: tekrar alınan ürünlerin fiyat değişimi",
+)
+def get_price_watch(
+    months: int = Query(12, ge=1, le=36),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    return price_watch(db, current_user.id, months=months)
+
+
+@router.get(
+    "/price-history",
+    response_model=PriceHistoryResponse,
+    summary="Bir ürünün fişlerdeki birim fiyat geçmişi",
+)
+def get_price_history(
+    q: str = Query(..., min_length=2, max_length=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    return price_history(db, current_user.id, q)
 
 
 @router.get("/{receipt_id}", response_model=ReceiptResponse, summary="Tekil fiş detayını getir")
